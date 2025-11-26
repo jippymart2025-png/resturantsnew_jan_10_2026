@@ -31,6 +31,21 @@ class RestaurantOrder extends Model
         'takeAway',
         'ToPay',
         'toPayAmount',
+        'driver',
+        'vendor',
+        'notes',
+        'estimatedTimeToPrepare',
+    ];
+
+    protected $casts = [
+        'products' => 'array',
+        'author' => 'array',
+        'address' => 'array',
+        'taxSetting' => 'array',
+        'specialDiscount' => 'array',
+        'takeAway' => 'boolean',
+        'driver' => 'array',
+        'vendor' => 'array',
     ];
 }
 

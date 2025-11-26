@@ -12,52 +12,42 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'users';
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
+    /** We store firebase_id as auth key */
+//    protected $primaryKey = 'firebase_id';
+//    public $incrementing = false;
+//    protected $keyType = 'string';
+
+    public $timestamps = false;
+
     protected $fillable = [
+        'firebase_id',
+//        '_id',
         'firstName',
         'lastName',
         'email',
         'password',
-        'firebase_id',
-        '_id',
-        'vendorID',
+        'countryCode',
+        'phoneNumber',
+        'provider',
+        'appIdentifier',
+        'role',
+        'createdAt',
+        'active',
+        'isDocumentVerify',
         'wallet_amount',
-        'subscriptionPlanId',
-        'subscription_plan',
-        'subscriptionExpiryDate',
+        'vType',
+        'profilePictureURL',
+        'vendorID',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
-        'two_factor_secret',
-        'two_factor_backup_codes',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
-        'email_verified_at' => 'datetime',
-        'two_factor_enabled' => 'boolean',
         'wallet_amount' => 'float',
         'shippingAddress' => 'array',
         'subscription_plan' => 'array',

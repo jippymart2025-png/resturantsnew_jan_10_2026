@@ -175,22 +175,10 @@
     <?php } ?>
 </head>
 <div id="app" class="fix-header fix-sidebar card-no-border">
-
-
     <main class="py-4">
         @yield('content')
     </main>
-
-
-
-
-
-
-
 </div>
-
-
 <body>
-
 </body>
 </html>

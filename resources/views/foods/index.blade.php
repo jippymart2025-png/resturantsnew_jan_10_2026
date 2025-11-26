@@ -1,629 +1,377 @@
 @extends('layouts.app')
+
 @section('content')
-<style>
-    .text-success {
-    background-color: #d4edda !important;
-    border-color: #c3e6cb !important;
-    color: #218838;
-}
-    .editable-price {
-        transition: all 0.2s ease;
-        border-radius: 3px;
-        padding: 2px 4px;
-    }
-    .editable-price:hover {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-    }
-    .editable-price.text-success {
-        background-color: #d4edda !important;
-        border-color: #c3e6cb !important;
-    }
-    .editable-price.text-danger {
-        background-color: #f8d7da !important;
-        border-color: #f5c6cb !important;
-    }
-    .editable-price input {
-        border: 2px solid #007bff;
-        border-radius: 3px;
-        padding: 2px 4px;
-        font-size: inherit;
-    }
-</style>
     <div class="page-wrapper">
         <div class="row page-titles">
-            <div class="col-md-5 align-self-center">
-                <h3 class="text-themecolor">{{ trans('lang.food_plural') }}</h3>
+        <div class="col-md-6 align-self-center">
+            <h3 class="text-themecolor">Foods</h3>
             </div>
-            <div class="col-md-7 align-self-center">
+        <div class="col-md-6 align-self-center text-right">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ url('/dashboard') }}">{{ trans('lang.dashboard') }}</a></li>
-                    <li class="breadcrumb-item active">{{ trans('lang.food_plural') }}</li>
+                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item active">Foods</li>
                 </ol>
             </div>
-            <div>
+    </div>
+
+    <div class="container-fluid">
+        <div class="card">
+            <div class="card-body">
+                <style>
+                    .bulk-delete-link.disabled {
+                        pointer-events: none;
+                        opacity: 0.4;
+                    }
+                </style>
+                @if (session('success'))
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {{ session('success') }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                @endif
+
+                @if (session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ session('error') }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                @endif
+
+                @if (session('import_errors'))
+                    <div class="alert alert-warning">
+                        <strong>{{ count(session('import_errors')) }} row(s) could not be imported:</strong>
+                        <ul class="mb-0">
+                            @foreach (session('import_errors') as $message)
+                                <li>{{ $message }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                <div class="d-md-flex justify-content-between align-items-center mb-4">
+                    <form method="GET" action="{{ route('foods') }}" class="form-inline flex-grow-1 mr-md-3 mb-3 mb-md-0">
+                        <div class="form-row w-100">
+                            <div class="col-md-6 mb-2 mb-md-0">
+                                <select name="category" class="form-control w-100">
+                                    <option value="">All categories</option>
+                                    @foreach ($categories as $category)
+                                        <option value="{{ $category->id }}" {{ request('category') == $category->id ? 'selected' : '' }}>
+                                            {{ $category->title }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-3 text-left text-md-right">
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fa fa-filter mr-1"></i> Filter
+                                </button>
             </div>
         </div>
-        <div class="row px-5 mb-2">
-            <div class="col-12">
-                <span class="font-weight-bold text-danger food-limit-note"></span>
+                        @if(request()->has('category'))
+                            <div class="mt-2">
+                                <a href="{{ route('foods') }}" class="small">Clear filter</a>
+                            </div>
+                        @endif
+                    </form>
+                    <div class="text-right">
+                        <a href="{{ route('foods.create') }}" class="btn btn-primary">
+                            <i class="fa fa-plus mr-1"></i> Create Food
+                        </a>
+                        <a href="{{ route('foods.download-template') }}" class="btn btn-outline-info ml-2" style="display: none;">
+                            <i class="fa fa-download mr-1"></i> Template
+                        </a>
             </div>
         </div>
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <ul class="nav nav-tabs align-items-end card-header-tabs w-100">
-                                <li class="nav-item active">
-                                    <a class="nav-link" href="{!! route('foods') !!}"><i
-                                            class="fa fa-list mr-2"></i>{{ trans('lang.food_table') }}</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{!! route('foods.create') !!}"><i
-                                            class="fa fa-plus mr-2"></i>{{ trans('lang.food_create') }}</a>
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="card-body">
+
+                <form id="bulk-delete-form" method="POST" action="{{ route('foods.bulkDestroy') }}">
+                    @csrf
+                    @method('DELETE')
                             <div class="table-responsive m-t-10">
-                                <table id="example24"
-                                       class="display nowrap table table-hover table-striped table-bordered table table-striped"
-                                       cellspacing="0" width="100%">
+                    <table class="display nowrap table table-hover table-striped table-bordered" id="foods-table" cellspacing="0" width="100%">
                                     <thead>
                                     <tr>
-                                        <th class="delete-all"><input type="checkbox" id="is_active"><label
-                                                class="col-3 control-label" for="is_active">
-                                                <a id="deleteAll" class="do_not_delete" href="javascript:void(0)"><i
-                                                        class="fa fa-trash"></i> {{ trans('lang.all') }}</a></label>
+                                <th class="delete-all" style="width:55px;">
+                                    <input type="checkbox" id="select-all">
+                                    <label class="col-3 control-label mb-0" for="select-all">
+                                        <a id="bulk-delete-link" class="do_not_delete bulk-delete-link disabled" href="javascript:void(0)">
+                                            <i class="fa fa-trash"></i> All
+                                        </a>
+                                    </label>
                                         </th>
-                                        <th>{{ trans('lang.food_image') }}</th>
-                                        <th>{{ trans('lang.food_name') }}</th>
-                                        <th>{{ trans('lang.food_price') }}</th>
-                                        <th>Discount Price</th>
-                                        <th>{{ trans('lang.food_category_id') }}</th>
-                                        <th>{{ trans('lang.date') }}</th>
-                                        <th>{{ trans('lang.food_publish') }}</th>
-                                        <th>{{ trans('lang.food_available') }}</th>
-                                        <th>{{ trans('lang.actions') }}</th>
+                                <th>Image</th>
+                                <th>Food</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Discount</th>
+                                <th>Publish</th>
+                                <th>Available</th>
+                                <th>Updated</th>
+                                <th class="text-right">Actions</th>
                                     </tr>
                                     </thead>
-                                    <tbody id="append_list1">
+                        <tbody>
+                            @forelse ($foods as $food)
+                                @php
+                                    $updatedAt = $food->updatedAt ? \Carbon\Carbon::parse($food->updatedAt)->format('M d, Y H:i') : '—';
+                                @endphp
+                                <tr>
+                                    <td class="delete-all">
+                                        <input type="checkbox"
+                                               class="item-checkbox"
+                                               id="food-{{ $food->id }}"
+                                               name="ids[]"
+                                               value="{{ $food->id }}">
+                                        <label class="col-3 control-label mb-0" for="food-{{ $food->id }}"></label>
+                                    </td>
+                                    <td width="80">
+                                        <img src="{{ $food->photo ?: $placeholderImage }}"
+                                             alt="{{ $food->name }}"
+                                             class="rounded"
+                                             style="width: 70px; height: 60px; object-fit: cover;">
+                                    </td>
+                                    <td>
+                                        <div class="font-weight-bold">{{ $food->name }}</div>
+                                        <small class="text-muted d-block">{{ \Illuminate\Support\Str::limit($food->description, 60) }}</small>
+                                    </td>
+                                    <td>{{ $food->category->title ?? '—' }}</td>
+                                    <td>
+                                        <span class="badge badge-light editable-price"
+                                              data-url="{{ route('foods.inlineUpdate', $food->id) }}"
+                                              data-field="price"
+                                              data-value="{{ $food->price ?? 0 }}">
+                                            {{ number_format((float) ($food->price ?? 0), 2) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-light editable-price"
+                                              data-url="{{ route('foods.inlineUpdate', $food->id) }}"
+                                              data-field="disPrice"
+                                              data-value="{{ $food->disPrice ?? 0 }}">
+                                            {{ number_format((float) ($food->disPrice ?? 0), 2) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="{{ route('foods.publish', $food->id) }}">
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="hidden" name="publish" value="{{ $food->publish ? 0 : 1 }}">
+                                            <button type="submit" class="btn btn-sm {{ $food->publish ? 'btn-success' : 'btn-outline-secondary' }}">
+                                                {{ $food->publish ? 'Published' : 'Hidden' }}
+                                            </button>
+                                        </form>
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="{{ route('foods.availability', $food->id) }}">
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="hidden" name="isAvailable" value="{{ $food->isAvailable ? 0 : 1 }}">
+                                            <button type="submit" class="btn btn-sm {{ $food->isAvailable ? 'btn-primary' : 'btn-outline-secondary' }}">
+                                                {{ $food->isAvailable ? 'Yes' : 'No' }}
+                                            </button>
+                                        </form>
+                                    </td>
+                                    <td>{{ $updatedAt }}</td>
+                                    <td class="text-right">
+                                        <a href="{{ route('foods.edit', $food->id) }}" class="btn btn-sm btn-outline-info">
+                                            <i class="fa fa-edit"></i>
+                                        </a>
+                                        <form method="POST" action="{{ route('foods.destroy', $food->id) }}" class="d-inline" onsubmit="return confirm('Delete this food?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="fa fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @empty
+{{--                                <tr>--}}
+{{--                                    <td colspan="10" class="text-center text-muted py-4">--}}
+{{--                                        No foods found. Use the button above to create one.--}}
+{{--                                    </td>--}}
+{{--                                </tr>--}}
+                            @endforelse
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                </form>
+
         </div>
     </div>
     </div>
     </div>
 @endsection
+
 @section('scripts')
-    <script type="text/javascript">
-        var database = firebase.firestore();
-        var offest = 1;
-        var pagesize = 10;
-        var end = null;
-        var endarray = [];
-        var start = null;
-        var user_number = [];
-        var vendorUserId = "<?php echo $id; ?>";
-        var vendorId;
-        var ref;
-        var append_list = '';
-        var placeholderImage = '';
-        ref = database.collection('vendor_products');
-        var activeCurrencyref = database.collection('currencies').where('isActive', "==", true);
-        var activeCurrency = '';
-        var currencyAtRight = false;
-        var decimal_degits = 0;
-        activeCurrencyref.get().then(async function(currencySnapshots) {
-            currencySnapshotsdata = currencySnapshots.docs[0].data();
-            activeCurrency = currencySnapshotsdata.symbol;
-            currencyAtRight = currencySnapshotsdata.symbolAtRight;
-            if (currencySnapshotsdata.decimal_degits) {
-                decimal_degits = currencySnapshotsdata.decimal_degits;
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const bulkDeleteLink = document.getElementById('bulk-delete-link');
+    const bulkDeleteForm = document.getElementById('bulk-delete-form');
+
+    function updateBulkControls() {
+        const checkboxes = Array.from(document.querySelectorAll('.item-checkbox'));
+        const checkedBoxes = checkboxes.filter(cb => cb.checked);
+
+        if (bulkDeleteLink) {
+            if (checkedBoxes.length === 0) {
+                bulkDeleteLink.classList.add('disabled');
+            } else {
+                bulkDeleteLink.classList.remove('disabled');
             }
-        })
-        $(document).ready(function() {
-            $('#category_search_dropdown').hide();
-            $(document.body).on('click', '.redirecttopage', function() {
-                var url = $(this).attr('data-url');
-                window.location.href = url;
-            });
-            var placeholder = database.collection('settings').doc('placeHolderImage');
-            placeholder.get().then(async function(snapshotsimage) {
-                var placeholderImageData = snapshotsimage.data();
-                placeholderImage = placeholderImageData.image;
-            })
-            const table = $('#example24').DataTable({
-                pageLength: 10, // Number of rows per page
-                processing: false, // Show processing indicator
-                serverSide: true, // Enable server-side processing
-                responsive: true,
-                ajax: async function(data, callback, settings) {
-                    const start = data.start;
-                    const length = data.length;
-                    const searchValue = data.search.value.toLowerCase();
-                    const orderColumnIndex = data.order[0].column;
-                    const orderDirection = data.order[0].dir;
-                    const orderableColumns = ['', '', 'name', 'finalPrice', 'disPrice', 'categoryName', 'createdAt',
-                        '', ''
-                    ]; // Ensure this matches the actual column names
-                    const orderByField = orderableColumns[orderColumnIndex];
-                    if (searchValue.length >= 3 || searchValue.length === 0) {
-                        $('#data-table_processing').show();
-                    }
-                    try {
-                        const Vendor = await getVendorId(vendorUserId);
-                        const querySnapshot = await ref.where('vendorID', "==", Vendor).get();
-                        if (!querySnapshot || querySnapshot.empty) {
-                            console.error("No data found in Firestore.");
-                            $('#data-table_processing').hide(); // Hide loader
-                            callback({
-                                draw: data.draw,
-                                recordsTotal: 0,
-                                recordsFiltered: 0,
-                                data: [] // No data
-                            });
+        }
+
+        if (selectAllCheckbox) {
+            if (!checkboxes.length) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
                             return;
                         }
-                        let records = [];
-                        let filteredRecords = [];
-                        await Promise.all(querySnapshot.docs.map(async (doc) => {
-                            let childData = doc.data();
-                            childData.id = doc
-                                .id; // Ensure the document ID is included in the data
-                            var finalPrice = 0;
-                            if (childData.hasOwnProperty('disPrice') && childData
-                                .disPrice != '' && childData.disPrice != '0') {
-                                finalPrice = childData.disPrice;
-                            } else {
-                                finalPrice = childData.price;
-                            }
-                            childData.finalPrice = parseInt(finalPrice);
-                            childData.categoryName = await productCategory(childData
-                                .categoryID);
-                            var date = '';
-                            var time = '';
-                            if (childData.hasOwnProperty("createdAt") && childData
-                                .expiresAt != '') {
-                                try {
-                                    date = childData.createdAt.toDate().toDateString();
-                                    time = childData.createdAt.toDate()
-                                        .toLocaleTimeString('en-US');
-                                } catch (err) {}
-                            }
-                            var createdAt = date + ' ' + time;
-                            childData.createDateTime=createdAt;
-                            if (searchValue) {
-                                if (
-                                    (childData.name && childData.name.toString()
-                                        .toLowerCase().includes(searchValue)) ||
-                                    (childData.finalPrice && childData.finalPrice
-                                            .toString().toLowerCase().includes(searchValue)
-                                    ) ||
-                                    (childData.categoryName && childData.categoryName
-                                            .toString().toLowerCase().includes(
-                                                searchValue) ||
-                                        (createdAt && createdAt.toString().toLowerCase()
-                                            .indexOf(searchValue) > -1)
-                                    )
-                                ) {
-                                    filteredRecords.push(childData);
-                                }
-                            } else {
-                                filteredRecords.push(childData);
-                            }
-                        }));
-                        filteredRecords.sort((a, b) => {
-                            let aValue = a[orderByField];
-                            let bValue = b[orderByField];
-                            if (orderByField === 'createdAt' && a[orderByField] != '' && b[
-                                orderByField] != '') {
-                                try {
-                                    aValue = a[orderByField] ? new Date(a[orderByField]
-                                        .toDate()).getTime() : 0;
-                                    bValue = b[orderByField] ? new Date(b[orderByField]
-                                        .toDate()).getTime() : 0;
-                                } catch (err) {}
-                            }
-                            if (orderByField === 'finalPrice') {
-                                aValue = a[orderByField] ? parseInt(a[orderByField]) : 0;
-                                bValue = b[orderByField] ? parseInt(b[orderByField]) : 0;
-                            } else {
-                                aValue = a[orderByField] ? a[orderByField].toString()
-                                    .toLowerCase().trim() : '';
-                                bValue = b[orderByField] ? b[orderByField].toString()
-                                    .toLowerCase().trim() : '';
-                            }
-                            if (orderDirection === 'asc') {
-                                return (aValue > bValue) ? 1 : -1;
-                            } else {
-                                return (aValue < bValue) ? 1 : -1;
-                            }
-                        });
-                        const totalRecords = filteredRecords.length;
-                        const paginatedRecords = filteredRecords.slice(start, start + length);
-                        const formattedRecords = await Promise.all(paginatedRecords.map(async (
-                            childData) => {
-                            return await buildHTML(childData);
-                        }));
-                        $('#data-table_processing').hide(); // Hide loader
-                        callback({
-                            draw: data.draw,
-                            recordsTotal: totalRecords,
-                            recordsFiltered: totalRecords,
-                            data: formattedRecords
-                        });
-                    } catch (error) {
-                        console.error("Error fetching data from Firestore:", error);
-                        jQuery('#overlay').hide();
-                        callback({
-                            draw: data.draw,
-                            recordsTotal: 0,
-                            recordsFiltered: 0,
-                            data: []
-                        });
-                    }
-                },
-                order: [5, 'asc'],
-                columnDefs: [{
-                    orderable: false,
-                    targets: [0, 1, 7, 8]
-                },
-                    {
-                        targets: 6,
-                        type: 'date',
-                        render: function(data) {
-                            return data;
-                        }
-                    },
-                ],
-                "language": {
-                    "zeroRecords": "{{ trans('lang.no_record_found') }}",
-                    "emptyTable": "{{ trans('lang.no_record_found') }}"
-                },
-            });
 
-            function debounce(func, wait) {
-                let timeout;
-                const context = this;
-                return function(...args) {
-                    clearTimeout(timeout);
-                    timeout = setTimeout(() => func.apply(context, args), wait);
-                };
-            }
-        });
-        $(document.body).on('change', '#selected_search', function() {
-            if (jQuery(this).val() == 'category') {
-                var ref_category = database.collection('vendor_categories');
-                ref_category.get().then(async function(snapshots) {
-                    snapshots.docs.forEach((listval) => {
-                        var data = listval.data();
-                        $('#category_search_dropdown').append($("<option></option").attr(
-                            "value", data.id).text(data.title));
-                    });
-                });
-                jQuery('#search').hide();
-                jQuery('#category_search_dropdown').show();
-            } else {
-                jQuery('#search').show();
-                jQuery('#category_search_dropdown').hide();
-            }
-        });
-        async function buildHTML(val) {
-            var html = [];
-            var id = val.id;
-            var route1 = '{{ route('foods.edit', ':id') }}';
-            route1 = route1.replace(':id', id);
-            html.push('<td class="delete-all"><input type="checkbox" id="is_open_' + id + '" class="is_open" dataId="' +
-                id + '"><label class="col-3 control-label"\n' +
-                'for="is_open_' + id + '" ></label></td>');
-            if (val.photo == '' && val.photo == null) {
-                html.push('<td><img class="rounded" style="width:50px" src="' + placeholderImage +
-                    '" alt="image"></td>');
-            } else {
-                html.push('<td><img onerror="this.onerror=null;this.src=\'' + placeholderImage +
-                    '\'" class="rounded" style="width:50px" src="' + val.photo + '" alt="image"></td>');
-            }
-            html.push('<td data-url="' + route1 + '" class="redirecttopage">' + val.name + '</td>');
-            // Enhanced price display logic with proper validation
-            var hasDiscount = val.hasOwnProperty('disPrice') && 
-                             val.disPrice != '' && 
-                             val.disPrice != '0' && 
-                             val.disPrice != null && 
-                             parseFloat(val.disPrice) > 0 && 
-                             parseFloat(val.disPrice) < parseFloat(val.price);
+            const allChecked = checkedBoxes.length === checkboxes.length;
+            const someChecked = checkedBoxes.length > 0 && !allChecked;
 
-            if (hasDiscount) {
-                // Has valid discount - show original price with strikethrough
-                if (currencyAtRight) {
-                    html.push('<td><span class="editable-price text-muted" style="text-decoration: line-through; cursor: pointer;" data-id="' + val.id + '" data-field="price" data-value="' + val.price + '">' + parseFloat(val.price).toFixed(decimal_degits) + '' + activeCurrency + '</span></td>');
-                } else {
-                    html.push('<td><span class="editable-price text-muted" style="text-decoration: line-through; cursor: pointer;" data-id="' + val.id + '" data-field="price" data-value="' + val.price + '">' + activeCurrency + '' + parseFloat(val.price).toFixed(decimal_degits) + '</span></td>');
-                }
-                // Show discount price in green - editable
-                if (currencyAtRight) {
-                    html.push('<td><span class="editable-price text-success" style="cursor: pointer;" data-id="' + val.id + '" data-field="disPrice" data-value="' + val.disPrice + '">' + parseFloat(val.disPrice).toFixed(decimal_degits) + '' + activeCurrency + '</span></td>');
-                } else {
-                    html.push('<td><span class="editable-price text-success" style="cursor: pointer;" data-id="' + val.id + '" data-field="disPrice" data-value="' + val.disPrice + '">' + activeCurrency + '' + parseFloat(val.disPrice).toFixed(decimal_degits) + '</span></td>');
-                }
-            } else {
-                // No valid discount - show regular price - editable
-                if (currencyAtRight) {
-                    html.push('<td><span class="editable-price text-success" style="cursor: pointer;" data-id="' + val.id + '" data-field="price" data-value="' + val.price + '">' + parseFloat(val.price).toFixed(decimal_degits) + '' + activeCurrency + '</span></td>');
-                } else {
-                    html.push('<td><span class="editable-price text-success" style="cursor: pointer;" data-id="' + val.id + '" data-field="price" data-value="' + val.price + '">' + activeCurrency + '' + parseFloat(val.price).toFixed(decimal_degits) + '</span></td>');
-                }
-                // Empty cell where discount price would be - editable
-                html.push('<td><span class="editable-price text-muted" style="cursor: pointer;" data-id="' + val.id + '" data-field="disPrice" data-value="0">-</span></td>');
-            }
-
-            html.push('<td class="category_' + val.categoryID + '">' + val.categoryName + '</td>');
-            html.push('<td>'+val.createDateTime+'</td>');
-            if (val.publish) {
-                html.push('<td><label class="switch"><input type="checkbox" checked id="' + val.id + '" name="publish"><span class="slider round"></span></label></td>');
-            } else {
-                html.push('<td><label class="switch"><input type="checkbox" id="' + val.id + '" name="publish"><span class="slider round"></span></label></td>');
-            }
-            if (val.isAvailable) {
-                html.push('<td><label class="switch"><input type="checkbox" checked id="available_' + val.id + '" name="isAvailable"><span class="slider round"></span></label></td>');
-            } else {
-                html.push('<td><label class="switch"><input type="checkbox" id="available_' + val.id + '" name="isAvailable"><span class="slider round"></span></label></td>');
-            }
-            var action = '';
-            action = action + '<span class="action-btn"><a href="' + route1 + '"><i class="fa fa-edit"></i></a>';
-            action = action + '<a id="' + val.id +
-                '" class="do_not_delete" name="food-delete" href="javascript:void(0)"><i class="fa fa-trash"></i></a>';
-            action = action + '</span>';
-            html.push(action);
-            return html;
+            selectAllCheckbox.checked = allChecked;
+            selectAllCheckbox.indeterminate = someChecked;
         }
-        $(document).on("click", "input[name='publish']", function(e) {
-            var ischeck = $(this).is(':checked');
-            var id = this.id;
-            if (ischeck) {
-                database.collection('vendor_products').doc(id).update({
-                    'publish': true
-                }).then(function(result) {});
-            } else {
-                database.collection('vendor_products').doc(id).update({
-                    'publish': false
-                }).then(function(result) {});
+    }
+
+    let foodsTableInstance = null;
+    if (window.jQuery && $.fn.DataTable) {
+        foodsTableInstance = $('#foods-table').DataTable({
+            pageLength: 30,
+            lengthMenu: [[10, 30, 50, 100, -1], [10, 30, 50, 100, 'All']],
+            order: [],
+            stateSave: true,
+            columnDefs: [
+                { targets: 0, orderable: false, searchable: false },
+                { targets: -1, orderable: false, searchable: false }
+            ]
+        });
+
+        foodsTableInstance.on('draw', function () {
+            updateBulkControls();
+        });
+    }
+
+    if (bulkDeleteLink && bulkDeleteForm) {
+        bulkDeleteLink.addEventListener('click', function (event) {
+            event.preventDefault();
+            if (bulkDeleteLink.classList.contains('disabled')) {
+                return;
+            }
+            if (confirm('Delete selected foods?')) {
+                bulkDeleteForm.submit();
             }
         });
-        $(document).on("click", "input[name='isAvailable']", function(e) {
-            var ischeck = $(this).is(':checked');
-            var id = this.id.replace('available_', '');
-            database.collection('vendor_products').doc(id).update({
-                'isAvailable': ischeck
-            }).then(function(result) {});
+    }
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function () {
+            const checked = this.checked;
+            document.querySelectorAll('.item-checkbox').forEach(cb => {
+                cb.checked = checked;
+            });
+            updateBulkControls();
         });
-        $("#is_active").click(function() {
-            $("#example24 .is_open").prop('checked', $(this).prop('checked'));
-        });
-        $("#deleteAll").click(function() {
-            if ($('#example24 .is_open:checked').length) {
-                if (confirm('Are You Sure want to Delete Selected Data ?')) {
-                    jQuery("#data-table_processing").show();
-                    $('#example24 .is_open:checked').each(async function() {
-                        var dataId = $(this).attr('dataId');
-                        await deleteDocumentWithImage('vendor_products', dataId, 'photo', 'photos');
-                        window.location.reload();
-                    });
-                }
-            } else {
-                alert('Please Select Any One Record .');
+    }
+
+    document.addEventListener('change', function (event) {
+        if (event.target.classList.contains('item-checkbox')) {
+            updateBulkControls();
+        }
+    });
+
+    updateBulkControls();
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    function attachInlineEditor(element) {
+        element.addEventListener('click', function () {
+            if (element.dataset.editing === 'true') {
+                return;
             }
-        });
-        async function productCategory(category) {
-            var productCategory = '';
-            await database.collection('vendor_categories').where("id", "==", category).get().then(async function(
-                snapshotss) {
-                if (snapshotss.docs[0]) {
-                    var category_data = snapshotss.docs[0].data();
-                    productCategory = category_data.title;
-                }
-            });
-            return productCategory;
-        }
-        $(document).on("click", "a[name='food-delete']", async function(e) {
-            var id = this.id;
-            await deleteDocumentWithImage('vendor_products', id, 'photo', 'photos');
-            window.location.reload();
-        });
-        async function getVendorId(vendorUser) {
-            var vendorId = '';
-            var ref;
-            await database.collection('vendors').where('author', "==", vendorUser).get().then(async function(
-                vendorSnapshots) {
-                var vendorData = vendorSnapshots.docs[0].data();
-                vendorId = vendorData.id;
-                var subscriptionModel = false;
-                var subscriptionBusinessModel = database.collection('settings').doc("restaurant");
-                await subscriptionBusinessModel.get().then(async function(snapshots) {
-                    var subscriptionSetting = snapshots.data();
-                    if (subscriptionSetting.subscription_model == true) {
-                        subscriptionModel = true;
-                    }
-                });
-                if (subscriptionModel) {
-                    if (vendorData.hasOwnProperty('subscription_plan') && vendorData.subscription_plan !=
-                        null && vendorData.subscription_plan != '') {
-                        itemLimit = vendorData.subscription_plan.itemLimit;
-                        if (itemLimit != '-1') {
-                            $('.food-limit-note').html(
-                                '{{ trans('lang.note') }} : {{ trans('lang.your_food_limit_is') }} ' +
-                                itemLimit + ' {{ trans('lang.so_only_first') }} ' + itemLimit +
-                                ' {{ trans('lang.foods_will_visible_to_customer') }}')
-                        }
-                    }
-                }
 
-            })
-            return vendorId;
-        }
+            element.dataset.editing = 'true';
+            const originalValue = parseFloat(element.dataset.value || 0).toFixed(2);
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.step = '0.01';
+            input.min = '0';
+            input.value = originalValue;
+            input.className = 'form-control form-control-sm';
+            input.style.width = '90px';
 
-        // Inline editing functionality for prices - using backend validation
-        $(document).on('click', '.editable-price', function() {
-            var $this = $(this);
-            var currentValue = $this.data('value');
-            var field = $this.data('field');
-            var id = $this.data('id');
-
-            console.log('Inline edit clicked:', { id: id, field: field, currentValue: currentValue });
-
-            // Create input field
-            var input = $('<input>', {
-                type: 'number',
-                step: '0.01',
-                min: '0',
-                class: 'form-control form-control-sm',
-                value: currentValue,
-                style: 'width: 80px; display: inline-block;'
-            });
-
-            // Replace span with input
-            $this.hide();
-            $this.after(input);
+            element.textContent = '';
+            element.classList.add('p-0');
+            element.appendChild(input);
             input.focus();
 
-            // Handle save on enter or blur
-            function saveValue() {
-                var newValue = parseFloat(input.val());
+            const resetState = (value) => {
+                element.textContent = value;
+                element.dataset.value = value;
+                element.dataset.editing = 'false';
+                element.classList.remove('p-0', 'text-info');
+            };
+
+            const submitValue = () => {
+                const newValue = parseFloat(input.value || 0);
                 if (isNaN(newValue) || newValue < 0) {
-                    newValue = 0;
+                    resetState(originalValue);
+                    return;
                 }
 
-                // Remove input and show span
-                input.remove();
-                $this.show();
+                element.classList.add('text-info');
 
-                // Show loading indicator
-                $this.addClass('text-info');
-                $this.text('Updating...');
-
-                // Send AJAX request to backend for proper validation and data consistency
-                $.ajax({
-                    url: '{{ route("foods.inlineUpdate", ":id") }}'.replace(':id', id),
+                fetch(element.dataset.url, {
                     method: 'PATCH',
-                    data: {
-                        field: field,
-                        value: newValue,
-                        _token: '{{ csrf_token() }}'
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
                     },
-                    success: function(response) {
-                        if (response.success) {
-                            // Backend validation passed, now update Firebase directly like publish toggle
-                            var updateData = {};
-                            updateData[field] = newValue.toString(); // Convert to string like edit page
-
-                            // If updating price, check if discount price needs to be reset
-                            if (field === 'price') {
-                                // Get current discount price from the row
-                                var discountCell = $this.closest('tr').find('.editable-price[data-field="disPrice"]');
-                                if (discountCell.length > 0) {
-                                    var currentDiscountValue = parseFloat(discountCell.data('value')) || 0;
-                                    if (currentDiscountValue > newValue) {
-                                        updateData['disPrice'] = '';
-                                    }
-                                }
-                            }
-
-                            // Update Firebase directly like the publish toggle
-                            database.collection('vendor_products').doc(id).update(updateData).then(function(result) {
-                                // Update the data attribute
-                                $this.data('value', newValue);
-
-                                // Update the display
-                                var displayValue = newValue.toFixed(decimal_degits);
-                                if (currencyAtRight) {
-                                    $this.text(displayValue + activeCurrency);
+                    body: JSON.stringify({
+                        field: element.dataset.field,
+                        value: newValue
+                    })
+                }).then(response => response.json())
+                  .then(data => {
+                      if (data.success) {
+                          const formatted = parseFloat(data.data.value).toFixed(2);
+                          resetState(formatted);
+                          element.classList.add('text-success');
+                          setTimeout(() => element.classList.remove('text-success'), 1200);
                                 } else {
-                                    $this.text(activeCurrency + displayValue);
-                                }
+                          resetState(originalValue);
+                          alert(data.message || 'Update failed.');
+                      }
+                  })
+                  .catch(() => {
+                      resetState(originalValue);
+                      alert('Unable to update price right now.');
+                  });
+            };
 
-                                // Show success indicator
-                                $this.removeClass('text-info').addClass('text-success');
-                                setTimeout(function() {
-                                    $this.removeClass('text-success');
-                                }, 1000);
-
-                                // If discount price was reset, update the UI
-                                if (updateData.hasOwnProperty('disPrice') && updateData['disPrice'] === '') {
-                                    var discountCell = $this.closest('tr').find('.editable-price[data-field="disPrice"]');
-                                    if (discountCell.length > 0) {
-                                        discountCell.data('value', 0);
-                                        discountCell.text('-');
-                                        discountCell.removeClass('text-success').addClass('text-muted');
-                                    }
-                                }
-                            }).catch(function(error) {
-                                console.error('Firebase update failed:', error);
-                                alert('Update failed. Please try again.');
-                                
-                                // Revert to original value
-                                var originalValue = currentValue;
-                                var displayValue = originalValue.toFixed(decimal_degits);
-                                if (currencyAtRight) {
-                                    $this.text(displayValue + activeCurrency);
-                                } else {
-                                    $this.text(activeCurrency + displayValue);
-                                }
-                                $this.removeClass('text-info');
-                            });
-                        } else {
-                            // Backend validation failed
-                            alert('Update failed: ' + response.message);
-                            // Revert to original value
-                            var originalValue = currentValue;
-                            var displayValue = originalValue.toFixed(decimal_degits);
-                            if (currencyAtRight) {
-                                $this.text(displayValue + activeCurrency);
-                            } else {
-                                $this.text(activeCurrency + displayValue);
-                            }
-                            $this.removeClass('text-info');
-                        }
-                    },
-                    error: function(xhr) {
-                        var errorMessage = 'Update failed';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
-                        alert(errorMessage);
-
-                        // Revert to original value
-                        var originalValue = currentValue;
-                        var displayValue = originalValue.toFixed(decimal_degits);
-                        if (currencyAtRight) {
-                            $this.text(displayValue + activeCurrency);
-                        } else {
-                            $this.text(activeCurrency + displayValue);
-                        }
-                        $this.removeClass('text-info');
-                    }
-                });
-            }
-
-            input.on('blur', saveValue);
-            input.on('keypress', function(e) {
-                if (e.which === 13) { // Enter key
-                    saveValue();
+            input.addEventListener('blur', submitValue);
+            input.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    submitValue();
+                }
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    resetState(originalValue);
                 }
             });
+        });
+    }
 
-            // Handle escape key
-            input.on('keydown', function(e) {
-                if (e.which === 27) { // Escape key
-                    input.remove();
-                    $this.show();
-                }
-            });
+    document.querySelectorAll('.editable-price').forEach(attachInlineEditor);
         });
     </script>
 @endsection
+
