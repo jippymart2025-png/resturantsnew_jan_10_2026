@@ -14,13 +14,34 @@ class VendorProduct extends Model
 
     public $incrementing = false;
 
-    protected $fillable = [
-        'id',
-        'vendorID',
-        'name',
-        'price',
-        'disPrice',
-        'publish',
+//    protected $fillable = [
+//        'id',
+//        'vendorID',
+//        'name',
+//        'price',
+//        'disPrice',
+//        'publish',
+//    ];
+
+    protected $guarded = [];
+
+    protected $casts = [
+        'publish' => 'boolean',
+        'isAvailable' => 'boolean',
+        'addOnsTitle' => 'array',
+        'addOnsPrice' => 'array',
+        'photos' => 'array',
+        'product_specification' => 'array',
     ];
+
+    public function category()
+    {
+        return $this->belongsTo(VendorCategory::class, 'categoryID');
+    }
+
+    public function vendor()
+    {
+        return $this->belongsTo(Vendor::class, 'vendorID');
+    }
 }
 

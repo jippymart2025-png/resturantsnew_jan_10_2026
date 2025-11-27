@@ -64,21 +64,21 @@
         <h1>🎉 Welcome to {{ config('app.name') }}!</h1>
         <p>Complete your registration to get started</p>
     </div>
-    
+
     <div class="content">
         <h2>Hello {{ $name }}!</h2>
-        
+
         <p>Thank you for registering with {{ config('app.name') }}! To complete your registration and start using your account, click the button below:</p>
-        
+
         <div style="text-align: center;">
             <a href="{{ $magicLink }}" class="button">Complete Registration</a>
         </div>
-        
+
         <p>Or copy and paste this link into your browser:</p>
         <p style="word-break: break-all; background: #e9ecef; padding: 10px; border-radius: 4px; font-family: monospace;">
             {{ $magicLink }}
         </p>
-        
+
         <div class="security-info">
             <h4>🛡️ Security Information</h4>
             <ul>
@@ -88,12 +88,12 @@
                 <li><strong>Secure:</strong> This link is encrypted and time-limited</li>
             </ul>
         </div>
-        
+
         <p><strong>What happens next?</strong> After clicking the link, you'll be automatically logged in and can start using all the features of {{ config('app.name') }}.</p>
-        
+
         <p>For security reasons, this registration link will expire in 30 minutes.</p>
     </div>
-    
+
     <div class="footer">
         <p>This email was sent from {{ config('app.name') }}</p>
         <p>If you have any questions, please contact our support team.</p>

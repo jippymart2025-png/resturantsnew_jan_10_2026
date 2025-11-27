@@ -63,7 +63,7 @@ foreach ($countries as $keycountry => $valuecountry) {
                                     <div class="form-group form-material" >
                                             <label class="col-3 control-label">{{trans('lang.user_phone')}}</label>
                                             <div class="col-12">
-                                                <div class="phone-box position-relative" id="phone-box"> 
+                                                <div class="phone-box position-relative" id="phone-box">
                                                     <select name="country" id="country_selector" disabled>
                                                         <?php foreach ($newcountries as $keycy => $valuecy) { ?>
                                                         <?php    $selected = ""; ?>
@@ -119,7 +119,7 @@ foreach ($countries as $keycountry => $valuecountry) {
                                     </div>
                                 </fieldset>
                                 <fieldset>
-                                    <legend>{{trans('lang.bankdetails')}}</legend>        
+                                    <legend>{{trans('lang.bankdetails')}}</legend>
                                     <div class="form-group row">
                                                 <div class="form-group row width-100">
                                                     <label class="col-4 control-label">{{trans('lang.bank_name')}}</label>
@@ -178,332 +178,69 @@ foreach ($countries as $keycountry => $valuecountry) {
             crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.26.0/moment.min.js"></script>
     <script>
-        var database = firebase.firestore();
-        var geoFirestore = new GeoFirestore(database);
-        var storageRef = firebase.storage().ref('images');
-        var storage = firebase.storage();
-        var photo = "";
-        var ownerphoto = '';
-        var ownerFileName = '';
-        var ownerOldImageFile = '';
-        var restaurant_id = "";
-        var restaurantOwnerOnline = false;
-        var ownerId = '';
-        var vendorUserId = "<?php echo $id; ?>";
-        var id = '';
-        var restaurantOwnerPhoto = '';
-        var placeholderImage = '';
-        var createdAtman = firebase.firestore.Timestamp.fromDate(new Date());
-        var placeholder = database.collection('settings').doc('placeHolderImage');
-        placeholder.get().then(async function (snapshotsimage) {
-            var placeholderImageData = snapshotsimage.data();
-            placeholderImage = placeholderImageData.image;
-        })
-        var documentVerificationEnable=false;
-        database.collection('settings').doc("document_verification_settings").get().then( async function(snapshots){
-          var documentVerification = snapshots.data();
-          if (documentVerification.isRestaurantVerification) {
-                documentVerificationEnable=true;
-          }
-        })
-        var userVerificationEnable=false;
-        database.collection('users').doc(vendorUserId).get().then(async function(snapshots){
-            var userData=snapshots.data();
-            if(userData && userData.hasOwnProperty('isDocumentVerify') && userData.isDocumentVerify==true || documentVerificationEnable==false){
-                userVerificationEnable=true;
-            }
-        })
-        var loginType = getCookie("loginType");
-        if(loginType == "phone" || loginType == "social"){
-            $(".password_div").hide();
-        }else{
-            $(".password_div").show();
-        }
-        var currentCurrency = '';
-        var currencyAtRight = false;
-        var decimal_degits = '';
-        var refCurrency = database.collection('currencies').where('isActive', '==', true);
-        refCurrency.get().then(async function (snapshots) {
-            var currencyData = snapshots.docs[0].data();
-            currentCurrency = currencyData.symbol;
-            decimal_degits = currencyData.decimal_degits;
-            currencyAtRight = currencyData.symbolAtRight;
-        });
         $(document).ready(function () {
-            $("#country_selector").select2({
-                templateResult: formatState,
-                templateSelection: formatState2,
-                placeholder: "Select Country",
-                allowClear: true
-            });
-            database.collection('users').doc(vendorUserId).get().then(async function (snapshots) {
-                var user = snapshots.data();
-                ownerId = user.id;
-                if(user.vendorID && user.vendorID != ''){
-                    restaurant_id = user.vendorID;
-                }
-                $(".user_first_name").val(user.firstName);
-                $(".user_last_name").val(user.lastName);
-                $(".user_email").val(user.email);
-                $("#country_selector").val(user.countryCode.replace('+', '')).trigger('change');
-                $(".user_phone").val(user.phoneNumber);
-                restaurantOwnerPhoto = user.profilePictureURL;
-                if (user.profilePictureURL != '' && user.profilePictureURL != null) {
-                    ownerphoto = user.profilePictureURL
-                    ownerOldImageFile = user.profilePictureURL;
-                    $("#uploaded_image_owner").attr('src', user.profilePictureURL);
-                } else {
-                    $("#uploaded_image_owner").attr('src', placeholderImage);
-                }
-                $(".uploaded_image_owner").show();
-                if (user.userBankDetails) {
-                    if (user.userBankDetails.bankName != undefined) {
-                        $("#bankName").val(user.userBankDetails.bankName);
-                    }
-                    if (user.userBankDetails.branchName != undefined) {
-                        $("#branchName").val(user.userBankDetails.branchName);
-                    }
-                    if (user.userBankDetails.holderName != undefined) {
-                        $("#holderName").val(user.userBankDetails.holderName);
-                    }
-                    if (user.userBankDetails.accountNumber != undefined) {
-                        $("#accountNumber").val(user.userBankDetails.accountNumber);
-                    }
-                    if (user.userBankDetails.otherDetails != undefined) {
-                        $("#otherDetails").val(user.userBankDetails.otherDetails);
-                    }
-                }
-                if (user.wallet_amount != undefined) {
-                    var wallet = user.wallet_amount;
-                } else {
-                    var wallet = 0;
-                }
-                if (currencyAtRight) {
-                    var price_val = parseFloat(wallet).toFixed(decimal_degits) + "" + currentCurrency;
-                } else {
-                    var price_val = currentCurrency + "" + parseFloat(wallet).toFixed(decimal_degits);
-                }
-                $('#wallet_balance').html(price_val);
-            });
-            $(".change_user_password").click(function () {
-                var userOldPassword = $(".user_old_password").val();
-                var userNewPassword = $(".user_new_password").val();
-                var userEmail = $(".user_email").val();
-                if (userOldPassword == '') {
-                        $(".error_top").show();
-                        $(".error_top").html("");
-                        $(".error_top").append("<p>{{trans('lang.old_password_error')}}</p>");
-                        window.scrollTo(0, 0);
-                } else if (userNewPassword == '') {
-                        $(".error_top").show();
-                        $(".error_top").html("");
-                        $(".error_top").append("<p>{{trans('lang.new_password_error')}}</p>");
-                        window.scrollTo(0, 0);
-                } else {
-                        var user = firebase.auth().currentUser;
-                        firebase.auth().signInWithEmailAndPassword(userEmail, userOldPassword)
-                            .then((userCredential) => {
-                                var user = userCredential.user;
-                                user.updatePassword(userNewPassword).then(() => {
-                                    $(".error_top").show();
-                                    $(".error_top").html("");
-                                    $(".error_top").append("<p>{{trans('lang.password_updated_successfully')}}</p>");
-                                    window.scrollTo(0, 0);
-                                }).catch((error) => {
-                                    $(".error_top").show();
-                                    $(".error_top").html("");
-                                    $(".error_top").append("<p>" + error + "</p>");
-                                    window.scrollTo(0, 0);
-                                });
-                            })
-                            .catch((error) => {
-                                var errorCode = error.code;
-                                var errorMessage = error.message;
-                                $(".error_top").show();
-                                $(".error_top").html("");
-                                $(".error_top").append("<p>" + errorMessage + "</p>");
-                                window.scrollTo(0, 0);
-                        });
-                }
-            });
-        });
-        var input = document.getElementById('accountNumber');
-        input.addEventListener('keypress', function (event) {
-        let keycode = event.which || event.keyCode;
-        // Check if key pressed is a special character
-        if (keycode < 48 ||
-            (keycode > 57 && keycode < 65) ||
-            (keycode > 90 && keycode < 97) ||
-            keycode > 122
-        ) {
-            // Restrict the special characters
-            event.preventDefault();
-            return false;
-        }
-        });
-         $(".save_restaurant_btn").click(async function () {
-                var userFirstName = $(".user_first_name").val();
-                var userLastName = $(".user_last_name").val();
-                var email = $(".user_email").val();
-                var countryCode = '+' + jQuery("#country_selector").val();
-                var userPhone = $(".user_phone").val();
-                var reststatus = false;
-                if (userFirstName == '') {
-                    $(".error_top").show();
-                    $(".error_top").html("");
-                    $(".error_top").append("<p>{{trans('lang.enter_owners_name_error')}}</p>");
-                    window.scrollTo(0, 0);
-                } else if (email == '') {
-                    $(".error_top").show();
-                    $(".error_top").html("");
-                    $(".error_top").append("<p>{{trans('lang.enter_owners_email')}}</p>");
-                    window.scrollTo(0, 0);
-                } else if (userPhone == '') {
-                    $(".error_top").show();
-                    $(".error_top").html("");
-                    $(".error_top").append("<p>{{trans('lang.enter_owners_phone')}}</p>");
-                    window.scrollTo(0, 0);
-                } else {
-                    jQuery("#data-table_processing").show();
-                    var bankName = $("#bankName").val();
-                    var branchName = $("#branchName").val();
-                    var holderName = $("#holderName").val();
-                    var accountNumber = $("#accountNumber").val();
-                    var otherDetails = $("#otherDetails").val();
-                    var userBankDetails = {
-                        'bankName': bankName,
-                        'branchName': branchName,
-                        'holderName': holderName,
-                        'accountNumber': accountNumber,
-                        'accountNumber': accountNumber,
-                        'otherDetails': otherDetails,
-                    };
-                    await storeImageData().then(async (IMG) =>
-                    {
-                        if(restaurant_id && restaurant_id != ''){
-                            database.collection('vendors').doc(restaurant_id).update({
-                                'author': ownerId,
-                                'authorProfilePic': IMG && IMG.ownerImage ? IMG.ownerImage : ""
-                            }).then(function (result) {}).catch((error) => {
-                                console.error("Error writing document: ", error);
-                                $("#field_error").html(error);
-                            });
-                         }
-                        database.collection('users').doc(ownerId).update({
-                            'firstName': userFirstName,
-                            'lastName': userLastName,
-                            'email': email,
-                            'countryCode': countryCode,
-                            'phoneNumber': userPhone,
-                            'profilePictureURL': IMG && IMG.ownerImage ? IMG.ownerImage : "",
-                            'userBankDetails': userBankDetails
-                        }).then(function (result) {
-                            window.location.href = '{{ route("user.profile")}}';
-                        });                           
-                    }).catch(err => {
-                        jQuery("#data-table_processing").hide();
-                        $(".error_top").show();
-                        $(".error_top").html("");
-                        $(".error_top").append("<p>" + err + "</p>");
-                        window.scrollTo(0, 0);
-                    });
-                }
-        })
-        async function storeImageData() {
-            var newPhoto = [];
-            newPhoto['ownerImage'] = ownerphoto;
-            try {
-                if (ownerphoto != '' && ownerphoto != null) {
-                    if (ownerOldImageFile != "" && ownerphoto != ownerOldImageFile) {
-                        var ownerOldImageUrlRef = await storage.refFromURL(ownerOldImageFile);
-                        imageBucket = ownerOldImageUrlRef.bucket;
-                        var envBucket = "<?php echo env('FIREBASE_STORAGE_BUCKET'); ?>";
-                        if (imageBucket == envBucket) {
-                            await ownerOldImageUrlRef.delete().then(() => {
-                                console.log("Old file deleted!")
-                            }).catch((error) => {
-                                console.log("ERR File delete ===", error);
-                            });
-                        } else {
-                            console.log('Bucket not matched');
-                        }
-                    }
-                    if (ownerphoto != ownerOldImageFile) {
-                        ownerphoto = ownerphoto.replace(/^data:image\/[a-z]+;base64,/, "")
-                        var uploadTask = await storageRef.child(ownerFileName).putString(ownerphoto, 'base64', {contentType: 'image/jpg'});
-                        var downloadURL = await uploadTask.ref.getDownloadURL();
-                        newPhoto['ownerImage'] = downloadURL;
-                        ownerphoto = downloadURL;
-                    }
-                }
-            } catch (error) {
-                console.log("ERR ===", error);
+            let user = @json($user);
+            let placeholderImage = "{{ $placeholderImage }}";
+
+            $(".user_first_name").val(user.firstName);
+            $(".user_last_name").val(user.lastName);
+            $(".user_email").val(user.email);
+            $(".user_phone").val(user.phoneNumber);
+
+            if (user.profilePictureURL) {
+                $("#uploaded_image_owner").attr('src', user.profilePictureURL);
+            } else {
+                $("#uploaded_image_owner").attr('src', placeholderImage);
             }
-            return newPhoto;
-        }
+            $(".uploaded_image_owner").show();
+        });
+
+        // Handle photo preview
         function handleFileSelectowner(evt) {
             var f = evt.target.files[0];
             var reader = new FileReader();
-            new Compressor(f, {
-                quality: <?php echo env('IMAGE_COMPRESSOR_QUALITY', 0.8); ?>,
-                success(result) {
-                    f = result;
-                    reader.onload = (function (theFile) {
-                        return function (e) {
-                            var filePayload = e.target.result;
-                            var hash = CryptoJS.SHA256(Math.random() + CryptoJS.SHA256(filePayload));
-                            var val = f.name;
-                            var ext = val.split('.')[1];
-                            var docName = val.split('fakepath')[1];
-                            var filename = (f.name).replace(/C:\\fakepath\\/i, '');
-                            var timestamp = Number(new Date());
-                            var filename = filename.split('.')[0] + "_" + timestamp + '.' + ext;
-                            ownerphoto = filePayload;
-                            ownerFileName = filename;
-                            $("#uploaded_image_owner").attr('src', ownerphoto);
-                            $(".uploaded_image_owner").show();
-                        };
-                    })(f);
-                    reader.readAsDataURL(f);
-                },
-                error(err) {
-                    console.log(err.message);
-                },
-            });
+            reader.onload = function (e) {
+                $("#uploaded_image_owner").attr('src', e.target.result);
+                $(".uploaded_image_owner").show();
+            };
+            reader.readAsDataURL(f);
         }
-        function formatState(state) {
-            if (!state.id) {
-                return state.text;
+
+        // Save via AJAX
+        $(".save_restaurant_btn").click(function () {
+
+            let formData = new FormData();
+            formData.append("first_name", $(".user_first_name").val());
+            formData.append("last_name", $(".user_last_name").val());
+            formData.append("phone", $(".user_phone").val());
+
+            if ($("input[type=file]")[0].files[0]) {
+                formData.append("photo", $("input[type=file]")[0].files[0]);
             }
-            var baseUrl = "<?php echo URL::to('/');?>/flags/120/";
-            var $state = $(
-                '<span><img src="' + baseUrl + '/' + newcountriesjs[state.element.value].toLowerCase() + '.png" class="img-flag" /> ' + state.text + '</span>'
-            );
-            return $state;
-        }
-        function formatState2(state) {
-            if (!state.id) {
-                return state.text;
-            }
-            var baseUrl = "<?php echo URL::to('/');?>/flags/120/"
-            var $state = $(
-                '<span><img class="img-flag" /> <span></span></span>'
-            );
-            $state.find("span").text(state.text);
-            $state.find("img").attr("src", baseUrl + "/" + newcountriesjs[state.element.value].toLowerCase() + ".png");
-            return $state;
-        }
-        var newcountriesjs = '<?php echo json_encode($newcountriesjs); ?>';
-        var newcountriesjs = JSON.parse(newcountriesjs);
-        function getCookie(name) {
-                var nameEQ=name+"=";
-                var ca=document.cookie.split(';');
-                for(var i=0;i<ca.length;i++) {
-                    var c=ca[i];
-                    while(c.charAt(0)==' ') c=c.substring(1,c.length);
-                    if(c.indexOf(nameEQ)==0) return c.substring(nameEQ.length,c.length);
+
+            formData.append("bank_name", $("#bankName").val());
+            formData.append("branch_name", $("#branchName").val());
+            formData.append("holder_name", $("#holderName").val());
+            formData.append("account_number", $("#accountNumber").val());
+            formData.append("other_information", $("#otherDetails").val());
+
+            formData.append("_token", "{{ csrf_token() }}");
+
+            $.ajax({
+                url: "{{ route('user.profile.update') }}",
+                method: "POST",
+                data: formData,
+                cache: false,
+                processData: false,
+                contentType: false,
+                success: function (res) {
+                    alert("Profile updated successfully!");
+                    location.reload();
+                },
+                error: function (xhr) {
+                    alert("Something went wrong");
                 }
-                return null;
-            }
+            });
+        });
     </script>
 @endsection

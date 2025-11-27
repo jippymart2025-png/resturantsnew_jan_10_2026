@@ -16,16 +16,18 @@ class VendorCategory extends Model
 
     protected $keyType = 'string';
 
-    protected $fillable = [
-        'id',
-        'title',
-        'description',
-        'photo',
-        'publish',
-        'show_in_homepage',
-        'vType',
-        'isActive',
-    ];
+//    protected $fillable = [
+//        'id',
+//        'title',
+//        'description',
+//        'photo',
+//        'publish',
+//        'show_in_homepage',
+//        'vType',
+//        'isActive',
+//    ];
+
+     protected $guarded = [];
 
     protected $casts = [
         'publish' => 'boolean',

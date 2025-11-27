@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateRestaurantRequest;
+use App\Models\Currency;
+use App\Models\Setting;
+use App\Models\Story;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Models\VendorCategory;
@@ -17,6 +20,19 @@ use Illuminate\View\View;
 
 class RestaurantProfileController extends Controller
 {
+    protected ?array $currencyMeta = null;
+
+    protected const FILTER_OPTIONS = [
+        'Free Wi-Fi' => 'lang.free_wi_fi',
+        'Good for Breakfast' => 'lang.good_for_breakfast',
+        'Good for Dinner' => 'lang.good_for_dinner',
+        'Good for Lunch' => 'lang.good_for_lunch',
+        'Live Music' => 'lang.Live_Music',
+        'Outdoor Seating' => 'lang.outdoor_seating',
+        'Takes Reservations' => 'lang.takes_reservations',
+        'Vegetarian Friendly' => 'lang.vegetarian_friendly',
+    ];
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -26,7 +42,19 @@ class RestaurantProfileController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
+        $settings = DB::table('settings')
+            ->whereIn('document_name', ['AdminCommission', 'placeholderImage'])
+            ->get()
+            ->keyBy('document_name')
+            ->map(function ($setting) {
+                $setting->fields = json_decode($setting->fields ?? '[]', true) ?? [];
+
+                return $setting;
+            });
         $vendor = $this->findVendorForUser($user);
+        $story = $vendor
+            ? Story::where('vendor_id', $vendor->id)->latest('created_at')->first()
+            : null;
 
         return view('restaurant.myrestaurant', [
             'user' => $user,
@@ -34,12 +62,15 @@ class RestaurantProfileController extends Controller
             'zones' => Zone::active()->orderBy('name')->get(),
             'cuisines' => VendorCuisine::active()->orderBy('title')->get(),
             'categories' => VendorCategory::active()->orderBy('title')->get(),
+            'story' => $story,
+            'settings' => $settings,
+            'currency' => $this->currencyMeta(),
+            'filterOptions' => $this->filterOptions(),
         ]);
     }
 
     public function update(UpdateRestaurantRequest $request): RedirectResponse
     {
-        /** @var User $user */
         $user = Auth::user();
 
         DB::transaction(function () use ($user, $request) {
@@ -64,6 +95,7 @@ class RestaurantProfileController extends Controller
                 'cuisineID' => $request->input('cuisine_id'),
             ];
 
+            // Category and cuisine titles...
             if ($request->filled('category_ids')) {
                 $payload['categoryTitle'] = VendorCategory::whereIn('id', $request->category_ids)
                     ->pluck('title')
@@ -76,6 +108,7 @@ class RestaurantProfileController extends Controller
                 $payload['cuisineTitle'] = optional(VendorCuisine::find($request->cuisine_id))->title;
             }
 
+            // Admin commission
             if ($request->filled('admin_commission')) {
                 $payload['adminCommission'] = [
                     'commissionType' => $request->input('admin_commission_type', 'Percent'),
@@ -84,20 +117,48 @@ class RestaurantProfileController extends Controller
                 ];
             }
 
-            if ($request->hasFile('photo')) {
-                $payload['photo'] = $this->storeImage($request->file('photo'), 'restaurants');
+            // ------------------ Restaurant Main Photo ------------------
+            if ($request->boolean('remove_photo')) {
+
+                $this->deleteFileIfLocal($vendor->photo ?? null);
+                $payload['photo'] = null;
+
+            } elseif ($request->hasFile('photo')) {
+
+                // delete old
+                $this->deleteFileIfLocal($vendor->photo ?? null);
+
+                // save new
+                $path = $request->file('photo')->store('restaurants', 'public');
+                $payload['photo'] = asset('storage/' . $path);
+            }
+
+            // ------------------ Gallery ------------------
+            $gallery = $vendor->photos ?? [];
+            $removeGallery = $request->input('remove_gallery', []);
+
+            if (!empty($removeGallery)) {
+                foreach ($removeGallery as $photo) {
+                    $this->deleteFileIfLocal($photo);
+                }
+
+                $gallery = array_values(array_filter($gallery, fn ($p) => !in_array($p, $removeGallery)));
             }
 
             if ($request->hasFile('gallery')) {
-                $existingGallery = $vendor->photos ?? [];
                 foreach ($request->file('gallery') as $file) {
-                    $existingGallery[] = $this->storeImage($file, 'restaurants/gallery');
+                    $path = $file->store('restaurants/gallery', 'public');
+                    $gallery[] = asset('storage/' . $path);
                 }
-                $payload['photos'] = array_values(array_filter($existingGallery));
             }
 
+            $payload['photos'] = $gallery;
+
+            // Filters, working hours, special discounts...
             $vendor->fill($payload);
             $vendor->save();
+
+            $this->storeStoryMedia($vendor, $request);
         });
 
         return redirect()
@@ -105,10 +166,10 @@ class RestaurantProfileController extends Controller
             ->with('success', 'Restaurant details updated successfully.');
     }
 
+
     protected function storeImage($file, string $path): string
     {
-        $stored = $file->store($path, 'public');
-
+        $stored = $file->store('restaurants');
         return Storage::disk('public')->url($stored);
     }
 
@@ -142,6 +203,143 @@ class RestaurantProfileController extends Controller
         }
 
         return $vendor;
+    }
+
+    protected function prepareWorkingHours(array $input): array
+    {
+        return collect($input)
+            ->map(function ($slots, $day) {
+                $timeslots = collect($slots)
+                    ->filter(function ($slot) {
+                        return !empty($slot['from']) && !empty($slot['to']) && $slot['from'] < $slot['to'];
+                    })
+                    ->map(function ($slot) {
+                        return [
+                            'from' => $slot['from'],
+                            'to' => $slot['to'],
+                        ];
+                    })
+                    ->values()
+                    ->all();
+
+                return [
+                    'day' => $day,
+                    'timeslot' => $timeslots,
+                ];
+            })
+            ->filter(fn ($day) => !empty($day['timeslot']))
+            ->values()
+            ->all();
+    }
+
+    protected function prepareSpecialDiscount(array $input): array
+    {
+        return collect($input)
+            ->map(function ($slots, $day) {
+                $timeslots = collect($slots)
+                    ->map(function ($slot) {
+                        $from = $slot['from'] ?? null;
+                        $to = $slot['to'] ?? null;
+                        $discount = $slot['discount'] ?? null;
+                        $type = $slot['type'] ?? 'percentage';
+                        $discountType = $slot['discount_type'] ?? 'delivery';
+
+                        if (empty($from) || empty($to) || empty($discount)) {
+                            return null;
+                        }
+
+                        return [
+                            'from' => $from,
+                            'to' => $to,
+                            'discount' => (float) $discount,
+                            'type' => $type,
+                            'discount_type' => $discountType,
+                        ];
+                    })
+                    ->filter(fn ($slot) => $slot !== null && $slot['from'] < $slot['to'])
+                    ->values()
+                    ->all();
+
+                return [
+                    'day' => $day,
+                    'timeslot' => $timeslots,
+                ];
+            })
+            ->filter(fn ($day) => !empty($day['timeslot']))
+            ->values()
+            ->all();
+    }
+
+    protected function currencyMeta(): array
+    {
+        if ($this->currencyMeta !== null) {
+            return $this->currencyMeta;
+        }
+
+        $currency = Currency::where('isActive', true)->first();
+
+        return $this->currencyMeta = [
+            'symbol' => $currency->symbol ?? '₹',
+            'symbol_at_right' => (bool) ($currency->symbolAtRight ?? false),
+            'decimal_digits' => $currency->decimal_degits ?? 2,
+        ];
+    }
+
+    protected function filterOptions(): array
+    {
+        return self::FILTER_OPTIONS;
+    }
+
+    protected function deleteFileIfLocal(?string $url): void
+    {
+        if (empty($url)) {
+            return;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH);
+        if (!$path) {
+            return;
+        }
+
+        $relative = ltrim(str_replace('/storage/', '', $path), '/');
+        if (empty($relative)) {
+            return;
+        }
+
+        if (Storage::disk('public')->exists($relative)) {
+            Storage::disk('public')->delete($relative);
+        }
+    }
+
+    protected function storeVideo($file, string $path): string
+    {
+        $stored = $file->store($path, 'public');
+
+        return Storage::disk('public')->url($stored);
+    }
+
+    protected function storeStoryMedia(Vendor $vendor, UpdateRestaurantRequest $request): void
+    {
+        $story = Story::firstOrNew(['vendor_id' => $vendor->id]);
+        $hasChanges = false;
+
+        if ($request->hasFile('story_thumbnail')) {
+            $this->deleteFileIfLocal($story->video_thumbnail ?? null);
+            $story->video_thumbnail = $this->storeImage($request->file('story_thumbnail'), 'stories/thumbnails');
+            $hasChanges = true;
+        }
+
+        if ($request->hasFile('story_video')) {
+            $existingVideo = is_array($story->video_url ?? null) ? ($story->video_url[0] ?? null) : null;
+            $this->deleteFileIfLocal($existingVideo);
+            $story->video_url = [$this->storeVideo($request->file('story_video'), 'stories/videos')];
+            $hasChanges = true;
+        }
+
+        if ($hasChanges) {
+            $story->vendor_id = $vendor->id;
+            $story->save();
+        }
     }
 }
 

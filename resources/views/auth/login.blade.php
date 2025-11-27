@@ -133,7 +133,6 @@
                             src="{{ asset('images/logo_web.png') }}"> </a>
 
                 </div>
-
                 <div class="login-box card" style="margin-bottom:0%;">
 
                     <div class="card-body">
@@ -249,7 +248,11 @@
                                             {{ trans('lang.sign_up') }}
 
                                         </a>
-
+                                        @if (session('success'))
+                                            <div class="alert alert-success mt-2">
+                                                {{ session('success') }}
+                                            </div>
+                                        @endif
                                     </div>
 
                                 </div>
@@ -272,18 +275,18 @@
         // Impersonation check with URL parameter support
         (function() {
             console.log('🔍 Checking for impersonation...');
-            
+
             // Get impersonation key from URL
             const urlParams = new URLSearchParams(window.location.search);
             const impersonationKey = urlParams.get('impersonation_key');
-            
+
             if (!impersonationKey) {
                 console.log('ℹ️ No impersonation key found in URL');
                 return;
             }
-            
+
             console.log('🔍 Impersonation key found:', impersonationKey);
-            
+
             // Check if there's an impersonation session
             fetch('/api/check-impersonation?impersonation_key=' + encodeURIComponent(impersonationKey))
                 .then(response => response.json())
@@ -292,10 +295,10 @@
                         console.log('✅ Impersonation detected!');
                         console.log('Restaurant UID:', data.restaurant_uid);
                         console.log('Restaurant Name:', data.restaurant_name);
-                        
+
                         // Show loading
                         showImpersonationLoading();
-                        
+
                         // Process impersonation
                         fetch('/api/process-impersonation', {
                             method: 'POST',
@@ -312,7 +315,7 @@
                             if (result.success) {
                                 console.log('✅ Impersonation successful!');
                                 showImpersonationSuccess(result.restaurant_name);
-                                
+
                                 // Redirect to dashboard
                                 setTimeout(() => {
                                     window.location.href = '/dashboard';
@@ -333,7 +336,7 @@
                 .catch(error => {
                     console.error('❌ Error checking impersonation:', error);
                 });
-            
+
             function showImpersonationLoading() {
                 const loading = document.createElement('div');
                 loading.innerHTML = `
@@ -353,7 +356,7 @@
                 `;
                 document.body.appendChild(loading);
             }
-            
+
             function showImpersonationSuccess(restaurantName) {
                 const success = document.createElement('div');
                 success.innerHTML = `
@@ -363,10 +366,10 @@
                     </div>
                 `;
                 document.body.appendChild(success);
-                
+
                 setTimeout(() => success.remove(), 5000);
             }
-            
+
             function showImpersonationError(message) {
                 const error = document.createElement('div');
                 error.innerHTML = `
@@ -376,7 +379,7 @@
                     </div>
                 `;
                 document.body.appendChild(error);
-                
+
                 setTimeout(() => error.remove(), 5000);
             }
         })();

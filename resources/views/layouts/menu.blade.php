@@ -96,7 +96,7 @@
     </ul>
 
     <p class="web_version text-center mt-4 text-muted small">
-        {{ config('app.name') }} · {{ __('Powered by SQL Data') }}
+        {{ config('app.name') }} · {{ __('Powered by JIPPYMART') }}
     </p>
 </nav>
 

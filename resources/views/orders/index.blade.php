@@ -39,9 +39,16 @@
                                         <th>{{trans('lang.actions')}}</th>
                                     </tr>
                                     </thead>
-                                    <tbody id="append_list1">
-                                    </tbody>
+                                    <tbody></tbody>
                                 </table>
+                                <form id="order-delete-form" method="POST" class="d-none">
+                                    @csrf
+                                    @method('DELETE')
+                                </form>
+                                <form id="order-bulk-delete-form" method="POST" action="{{ route('orders.bulkDestroy') }}" class="d-none">
+                                    @csrf
+                                    @method('DELETE')
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -49,331 +56,117 @@
             </div>
         </div>
     </div>
-    </div>
-    </div>
 @endsection
 @section('scripts')
-    <script type="text/javascript">
-        var database = firebase.firestore();
-        var offest = 1;
-        var pagesize = 10;
-        var end = null;
-        var endarray = [];
-        var start = null;
-        var user_id = "<?php echo $id; ?>";
-        var append_list = '';
-        var user_number = [];
-        var ref = database.collection('restaurant_orders').orderBy('createdAt', 'desc').where('vendor.author', "==", user_id);
-        var currentCurrency = '';
-        var currencyAtRight = false;
-        var decimal_degits = 0;
-        var refCurrency = database.collection('currencies').where('isActive', '==', true);
-        refCurrency.get().then(async function (snapshots) {
-            var currencyData = snapshots.docs[0].data();
-            currentCurrency = currencyData.symbol;
-            currencyAtRight = currencyData.symbolAtRight;
-            if (currencyData.decimal_degits) {
-                decimal_degits = currencyData.decimal_degits;
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const statusFilter = @json($statusQuery ?? '');
+    const bulkDeleteForm = document.getElementById('order-bulk-delete-form');
+    const deleteForm = document.getElementById('order-delete-form');
+    const selectAll = document.getElementById('is_active');
+    const deleteAllBtn = document.getElementById('deleteAll');
+
+    const ordersTable = $('#orderTable').DataTable({
+        processing: true,
+        serverSide: true,
+        responsive: true,
+        pageLength: 10,
+        ajax: {
+            url: '{{ route('orders.data') }}',
+            data: function (d) {
+                d.status = statusFilter;
             }
-        });
-        $(document).ready(function () {
-            $(document.body).on('click', '.redirecttopage', function () {
-                var url = $(this).attr('data-url');
-                window.location.href = url;
-            });
-            jQuery("#data-table_processing").show();
-            const table = $('#orderTable').DataTable({
-                pageLength: 10,
-                processing: false,
-                serverSide: true,
-                responsive: true,
-                ajax: async function (data, callback, settings) {
-                    const start = data.start;
-                    const length = data.length;
-                    const searchValue = data.search.value.toLowerCase();
-                    const orderColumnIndex = data.order[0].column;
-                    const orderDirection = data.order[0].dir;
-                    const orderableColumns = ['','id','client','driver','status','price','takeAway','createdAt',''];
-                    const orderByField = orderableColumns[orderColumnIndex];
-                    if (searchValue.length >= 3 || searchValue.length === 0) {
-                        $('#data-table_processing').show();
-                    }
-                    try {
-                        const querySnapshot = await ref.get();
-                        if (!querySnapshot || querySnapshot.empty) {
-                            $('#data-table_processing').hide();
-                            callback({
-                                draw: data.draw,
-                                recordsTotal: 0,
-                                recordsFiltered: 0,
-                                data: []
-                            });
-                            return;
-                        }
-                        let records = [];
-                        let filteredRecords = [];
-                        await Promise.all(querySnapshot.docs.map(async (doc) => {
-                            let childData = doc.data();
-                            childData.id = doc.id;
-                            if(childData.hasOwnProperty('author') && childData.author != null && childData.author != ''){
-                                childData.afirstName = childData.author.firstName;
-                                childData.alastName = childData.author.lastName;
-                            }
-                            else{
-                                childData.afirstName = '';
-                                childData.alastName = '';
-                            }
-                            if(childData.hasOwnProperty('driver') && childData.driver != null && childData.driver != '')
-                            {
-                                childData.dfirstName = childData.driver.firstName;
-                                childData.dlastName = childData.driver.lastName;    
-                            }
-                            else{
-                                childData.dfirstName = '';
-                                childData.dlastName = '';
-                            }
-                            var client = '';
-                            if (childData.afirstName != ' ' || childData.alastName != '') {
-                                client = childData.afirstName + ' ' + childData.alastName;
-                            }
-                            childData.client = client ? client : ' ';
-                            var driver = '';
-                            if (childData.dfirstName != ' ' || childData.dlastName != '' ) {
-                                driver = childData.dfirstName + ' ' + childData.dlastName;
-                            }
-                            childData.driver = driver ? driver : ' ';
-                            var price = 0;
-                            childData.price =  buildHTMLProductstotal(childData);
-                            var takeAway = '';
-                            if (childData.hasOwnProperty('takeAway') && childData.takeAway) {
-                                takeAway = '<td>{{trans("lang.order_takeaway")}}</td>';
-                            } else {
-                                takeAway =  '<td>{{trans("lang.order_delivery")}}</td>';
-                            }
-                            childData.takeAway = takeAway ? takeAway : ' ';
-                            var date = '';
-                            var time = '';
-                            if (childData.hasOwnProperty("createdAt") && childData.expiresAt != '') {
-                                try {
-                                    date = childData.createdAt.toDate().toDateString();
-                                    time = childData.createdAt.toDate().toLocaleTimeString('en-US');
-                                } catch (err) {
-                                }
-                            }
-                            var createdAt = date + ' ' + time ;
-                            if (searchValue) {
-                                if (
-                                    (childData.id && childData.id.toLowerCase().includes(searchValue)) ||
-                                    (childData.client && childData.client.toLowerCase().includes(searchValue)) ||
-                                    (childData.driver && childData.driver.toLowerCase().includes(searchValue)) ||
-                                    (childData.status && childData.status.toLowerCase().includes(searchValue)) ||
-                                    (childData.price && childData.price.toLowerCase().includes(searchValue)) ||
-                                    (childData.takeAway && childData.takeAway.toLowerCase().includes(searchValue)) ||
-                                    (createdAt && createdAt.toString().toLowerCase().indexOf(searchValue) > -1)
-                                ) {
-                                    filteredRecords.push(childData);
-                                }
-                            } else {
-                                filteredRecords.push(childData);
-                            }
-                        }));
-                        filteredRecords.sort((a, b) => {
-                            let aValue = a[orderByField] ? a[orderByField].toString().toLowerCase().trim() : '';
-                            let bValue = b[orderByField] ? b[orderByField].toString().toLowerCase().trim() : '';
-                            if (orderByField === 'createdAt' && a[orderByField] != '' && b[orderByField] != '') {
-                                try {
-                                    aValue = a[orderByField] ? new Date(a[orderByField].toDate()).getTime() : 0;
-                                    bValue = b[orderByField] ? new Date(b[orderByField].toDate()).getTime() : 0;
-                                } catch (err) {
-                                }
-                            }
-                            if (orderByField === 'price') {
-                                aValue = a[orderByField] ? parseFloat(a[orderByField].replace(/[^0-9.]/g, '')) || 0 : 0;
-                                bValue = b[orderByField] ? parseFloat(b[orderByField].replace(/[^0-9.]/g, '')) || 0 : 0;
-                            }
-                            if (orderDirection === 'asc') {
-                                return (aValue > bValue) ? 1 : -1;
-                            } else {
-                                return (aValue < bValue) ? 1 : -1;
-                            }
-                        });
-                        const totalRecords = filteredRecords.length;
-                        const paginatedRecords = filteredRecords.slice(start, start + length);
-                        const formattedRecords = await Promise.all(paginatedRecords.map(async (childData) => {
-                            return await buildHTML(childData);
-                        }));
-                        $('#data-table_processing').hide();
-                        callback({
-                            draw: data.draw,
-                            recordsTotal: totalRecords,
-                            recordsFiltered: totalRecords,
-                            data: formattedRecords
-                        });
-                    } catch (error) {
-                        console.error("Error fetching data from Firestore:", error);
-                        $('#data-table_processing').hide();
-                        callback({
-                            draw: data.draw,
-                            recordsTotal: 0,
-                            recordsFiltered: 0,
-                            data: []
-                        });
-                    }
-                },
-                columnDefs: [
-                    {
-                        targets: 7,
-                        type: 'date',
-                        render: function (data) {
-                            return data;
-                        }
-                    },
-                    {orderable: false, targets: [0, 8,4]},
-                ],
-                order: [['7', 'desc']],
-                "language": {
-                    "zeroRecords": "{{trans('lang.no_record_found')}}",
-                    "emptyTable": "{{trans('lang.no_record_found')}}",
-                    "processing": "" // Remove default loader
-                },
-            });
-        function debounce(func, wait) {
-            let timeout;
-            const context = this;
-            return function (...args) {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => func.apply(context, args), wait);
-            };
+        },
+        columns: [
+            { data: 'select', orderable: false, searchable: false },
+            { data: 'id' },
+            { data: 'customer' },
+            { data: 'driver' },
+            { data: 'status', orderable: false, searchable: false },
+            { data: 'amount' },
+            { data: 'type', orderable: false },
+            { data: 'date' },
+            { data: 'actions', orderable: false, searchable: false },
+        ],
+        order: [[7, 'desc']],
+        language: {
+            zeroRecords: "{{trans('lang.no_record_found')}}",
+            emptyTable: "{{trans('lang.no_record_found')}}",
         }
-        });
-        async function buildHTML(val) {
-            html=[];
-            var id = val.id;
-            var route1 = '{{route("orders.edit",":id")}}';
-            route1 = route1.replace(':id', id);
-            var printRoute = '{{route("vendors.orderprint",":id")}}';
-            printRoute = printRoute.replace(':id', id);
-            html.push('<td class="delete-all"><input type="checkbox" id="is_open_' + id + '" class="is_open" dataId="' + id + '"><label class="col-3 control-label"\n' +
-                'for="is_open_' + id + '" ></label></td>');
-            html.push('<td><div data-url="'+route1+'" class="redirecttopage" style="cursor: pointer;">' + val.id + '</td>');
-            if(val.client){
-                html.push('<td>' + val.client + '</td>');
-            }
-            else{
-                html.push('<td></td>');
-            }
-            if (val.driver) {
-                html.push('<td >' + val.driver + '</td>');
+    });
+
+    function updateBulkControls() {
+        const checkboxes = Array.from(document.querySelectorAll('#orderTable .is_open'));
+        const checked = checkboxes.filter(cb => cb.checked);
+
+        if (selectAll) {
+            if (!checkboxes.length) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
             } else {
-                html.push('<td></td>');
+                selectAll.checked = checked.length === checkboxes.length && checked.length > 0;
+                selectAll.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
             }
-            if (val.status == 'Order Placed') {
-                html.push('<td><span class="order_placed">' + val.status + '</span></td>');
-            } else if (val.status == 'Order Accepted') {
-                html.push('<td><span class="order_accepted">' + val.status + '</span></td>');
-            } else if (val.status == 'Order Rejected') {
-                html.push('<td><span class="order_rejected">' + val.status + '</span></td>');
-            } else if (val.status == 'Driver Pending') {
-                html.push('<td><span class="driver_pending">' + val.status + '</span></td>');
-            } else if (val.status == 'Driver Rejected') {
-                html.push('<td><span class="driver_rejected">' + val.status + '</span></td>');
-            } else if (val.status == 'Order Shipped') {
-                html.push('<td class="order_shipped"><span>' + val.status + '</span></td>');
-            } else if (val.status == 'In Transit') {
-                html.push('<td class="in_transit"><span>' + val.status + '</span></td>');
-            } else if (val.status == 'Order Completed') {
-                html.push('<td class="order_completed"><span>' + val.status + '</span></td>');
-            }
-            
-            // Calculate subtotal directly here - Product Base Price × Quantity only
-            var subtotal = 0;
-            if (val.products) {
-                val.products.forEach((product) => {
-                    var final_price = '';
-                    if(product.discountPrice != 0 && product.discountPrice != "" && product.discountPrice != null && !isNaN(product.discountPrice)){
-                        final_price = parseFloat(product.discountPrice);    
-                    } else {
-                        final_price = parseFloat(product.price);
-                    }
-                    var price_item = parseFloat(final_price).toFixed(2);
-                    var totalProductPrice = parseFloat(price_item) * parseInt(product.quantity);
-                    subtotal += parseFloat(totalProductPrice);
-                });
-            }
-            
-            // Format subtotal with currency
-            var subtotal_display = '';
-            if (currencyAtRight) {
-                subtotal_display = parseFloat(subtotal).toFixed(decimal_degits) + "" + currentCurrency;
-            } else {
-                subtotal_display = currentCurrency + "" + parseFloat(subtotal).toFixed(decimal_degits);
-            }
-            
-            html.push('<td class="text-green">' + subtotal_display + '</td>');
-            html.push(val.takeAway);
-            var createdAt_val = '';
-            if (val.createdAt) {
-                var date1 = val.createdAt.toDate().toDateString();
-                createdAt_val = date1;
-                var time = val.createdAt.toDate().toLocaleTimeString('en-US');
-                createdAt_val = createdAt_val + ' ' + time;
-            }
-            html.push('<td>' + createdAt_val + '</td>');
-            html.push('<span class="action-btn"><a href="' + printRoute + '"><i class="fa fa-print" style="font-size:20px;"></i></a><a href="' + route1 + '"><i class="fa fa-edit"></i></a><a id="' + val.id + '" class="do_not_delete" name="order-delete" href="javascript:void(0)"><i class="fa fa-trash"></i></a></span>');
-            return html;
         }
-        $("#is_active").click(function () {
-            $("#orderTable .is_open").prop('checked', $(this).prop('checked'));
-        });
-        $("#deleteAll").click(function () {
-            if ($('#orderTable .is_open:checked').length) {
-                if (confirm('Are You Sure want to Delete Selected Data ?')) {
-                    jQuery("#data-table_processing").show();
-                    $('#orderTable .is_open:checked').each(function () {
-                        var dataId = $(this).attr('dataId');
-                        database.collection('restaurant_orders').doc(dataId).delete().then(function () {
-                            window.location.reload();
-                        });
-                    });
-                }
-            } else {
-                alert('Please Select Any One Record .');
-            }
-        });
-        $(document).on("click", "a[name='order-delete']", function (e) {
-            var id = this.id;
-            database.collection('restaurant_orders').doc(id).delete().then(function (result) {
-                window.location.href = '{{ url()->current() }}';
+
+        if (deleteAllBtn) {
+            deleteAllBtn.classList.toggle('disabled', checked.length === 0);
+        }
+    }
+
+    ordersTable.on('draw', function () {
+        updateBulkControls();
+    });
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function () {
+            document.querySelectorAll('#orderTable .is_open').forEach(cb => {
+                cb.checked = selectAll.checked;
             });
+            updateBulkControls();
         });
-        function buildHTMLProductstotal(snapshotsProducts) {
-            var products = snapshotsProducts.products;
-            var total_price = 0;
-            
-            if (products) {
-                products.forEach((product) => {
-                    var val = product;
-                    // Only calculate: Product Base Price × Quantity (Subtotal)
-                    var final_price = '';
-                    if(val.discountPrice != 0 && val.discountPrice != "" && val.discountPrice != null && !isNaN(val.discountPrice)){
-                        final_price = parseFloat(val.discountPrice);    
-                    } else {
-                        final_price = parseFloat(val.price);
-                    }
-                    var price_item = parseFloat(final_price).toFixed(2);
-                    var totalProductPrice = parseFloat(price_item) * parseInt(val.quantity);
-                    total_price += parseFloat(totalProductPrice);
-                });
-            }
-            
-            // Format with currency - return only subtotal
-            if (currencyAtRight) {
-                var total_price_val = parseFloat(total_price).toFixed(decimal_degits) + "" + currentCurrency;
-            } else {
-                var total_price_val = currentCurrency + "" + parseFloat(total_price).toFixed(decimal_degits);
-            }
-            
-            return total_price_val;
+    }
+
+    document.addEventListener('change', function (event) {
+        if (event.target.classList.contains('is_open')) {
+            updateBulkControls();
         }
-    </script>
+    });
+
+    if (deleteAllBtn && bulkDeleteForm) {
+        deleteAllBtn.addEventListener('click', function (event) {
+            event.preventDefault();
+            if (deleteAllBtn.classList.contains('disabled')) {
+                return;
+            }
+            const selected = Array.from(document.querySelectorAll('#orderTable .is_open:checked'));
+            if (!selected.length || !confirm('Delete selected orders?')) {
+                return;
+            }
+            bulkDeleteForm.querySelectorAll('input[name="ids[]"]').forEach(el => el.remove());
+            selected.forEach(cb => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'ids[]';
+                input.value = cb.value;
+                bulkDeleteForm.appendChild(input);
+            });
+            bulkDeleteForm.submit();
+        });
+    }
+
+    document.addEventListener('click', function (event) {
+        const deleteBtn = event.target.closest('.order-delete-btn');
+        if (!deleteBtn || !deleteForm) {
+            return;
+        }
+        event.preventDefault();
+        if (!confirm('Delete this order?')) {
+            return;
+        }
+        deleteForm.action = deleteBtn.dataset.route;
+        deleteForm.submit();
+    });
+});
+</script>
 @endsection

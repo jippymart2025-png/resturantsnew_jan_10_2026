@@ -455,87 +455,87 @@
                 }
             });
         </script>
-        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+{{--        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>--}}
+{{--        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>--}}
+{{--        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>--}}
+{{--        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>--}}
+{{--        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>--}}
 
         <!-- Firebase Configuration -->
-        <script>
-            // Check if Firebase is already loaded and initialized
-            if (typeof firebase === 'undefined') {
-                console.error('❌ Firebase SDK not loaded');
-            } else {
-                // Firebase configuration - Same as login page
-                const firebaseConfig = {
-                    apiKey: "{{ env('FIREBASE_APIKEY', 'AIzaSyAf_lICoxPh8qKE1QnVkmQYTFJXKkYmRXU') }}",
-                    authDomain: "{{ env('FIREBASE_AUTH_DOMAIN', 'jippymart-27c08.firebaseapp.com') }}",
-                    databaseURL: "{{ env('FIREBASE_DATABASE_URL', 'https://jippymart-27c08-default-rtdb.firebaseio.com') }}",
-                    projectId: "{{ env('FIREBASE_PROJECT_ID', 'jippymart-27c08') }}",
-                    storageBucket: "{{ env('FIREBASE_STORAGE_BUCKET', 'jippymart-27c08.firebasestorage.app') }}",
-                    messagingSenderId: "{{ env('FIREBASE_MESSAAGING_SENDER_ID', '592427852800') }}",
-                    appId: "{{ env('FIREBASE_APP_ID', '1:592427852800:web:f74df8ceb2a4b597d1a4e5') }}",
-                    measurementId: "{{ env('FIREBASE_MEASUREMENT_ID', 'G-ZYBQYPZWCF') }}"
-                };
+{{--        <script>--}}
+{{--            // Check if Firebase is already loaded and initialized--}}
+{{--            if (typeof firebase === 'undefined') {--}}
+{{--                console.error('❌ Firebase SDK not loaded');--}}
+{{--            } else {--}}
+{{--                // Firebase configuration - Same as login page--}}
+{{--                const firebaseConfig = {--}}
+{{--                    apiKey: "{{ env('FIREBASE_APIKEY', 'AIzaSyAf_lICoxPh8qKE1QnVkmQYTFJXKkYmRXU') }}",--}}
+{{--                    authDomain: "{{ env('FIREBASE_AUTH_DOMAIN', 'jippymart-27c08.firebaseapp.com') }}",--}}
+{{--                    databaseURL: "{{ env('FIREBASE_DATABASE_URL', 'https://jippymart-27c08-default-rtdb.firebaseio.com') }}",--}}
+{{--                    projectId: "{{ env('FIREBASE_PROJECT_ID', 'jippymart-27c08') }}",--}}
+{{--                    storageBucket: "{{ env('FIREBASE_STORAGE_BUCKET', 'jippymart-27c08.firebasestorage.app') }}",--}}
+{{--                    messagingSenderId: "{{ env('FIREBASE_MESSAAGING_SENDER_ID', '592427852800') }}",--}}
+{{--                    appId: "{{ env('FIREBASE_APP_ID', '1:592427852800:web:f74df8ceb2a4b597d1a4e5') }}",--}}
+{{--                    measurementId: "{{ env('FIREBASE_MEASUREMENT_ID', 'G-ZYBQYPZWCF') }}"--}}
+{{--                };--}}
 
-                // Initialize Firebase only if not already initialized
-                if (!firebase.apps || firebase.apps.length === 0) {
-                    try {
-                        firebase.initializeApp(firebaseConfig);
-                        console.log('✅ Firebase initialized in main layout');
+{{--                // Initialize Firebase only if not already initialized--}}
+{{--                if (!firebase.apps || firebase.apps.length === 0) {--}}
+{{--                    try {--}}
+{{--                        firebase.initializeApp(firebaseConfig);--}}
+{{--                        console.log('✅ Firebase initialized in main layout');--}}
 
-                        // Initialize Firestore database globally
-                        window.database = firebase.firestore();
-                        window.storage = firebase.storage();
-                        window.auth = firebase.auth();
+{{--                        // Initialize Firestore database globally--}}
+{{--                        window.database = firebase.firestore();--}}
+{{--                        window.storage = firebase.storage();--}}
+{{--                        window.auth = firebase.auth();--}}
 
-                        console.log('✅ Firebase services initialized');
-                    } catch (error) {
-                        console.error('❌ Firebase initialization error:', error);
-                    }
-                } else {
-                    console.log('✅ Firebase already initialized, skipping duplicate initialization');
-                    // Still set up global references
-                    if (!window.database) {
-                        window.database = firebase.firestore();
-                        window.storage = firebase.storage();
-                        window.auth = firebase.auth();
-                    }
-                }
-            }
-        </script>
-        <script src="https://unpkg.com/geofirestore/dist/geofirestore.js"></script>
-        <script src="https://cdn.firebase.com/libs/geofire/5.0.1/geofire.min.js"></script>
-        <script src="{{ asset('js/crypto-js.js') }}"></script>
-        <script src="{{ asset('js/jquery.cookie.js') }}"></script>
-        <script>
-            // Fix jQuery cookie initialization
-            $(document).ready(function() {
-                // Initialize jQuery cookie with proper error handling
-                if (typeof $.cookie === 'undefined') {
-                    console.warn('jQuery cookie plugin not loaded properly');
-                }
-            });
+{{--                        console.log('✅ Firebase services initialized');--}}
+{{--                    } catch (error) {--}}
+{{--                        console.error('❌ Firebase initialization error:', error);--}}
+{{--                    }--}}
+{{--                } else {--}}
+{{--                    console.log('✅ Firebase already initialized, skipping duplicate initialization');--}}
+{{--                    // Still set up global references--}}
+{{--                    if (!window.database) {--}}
+{{--                        window.database = firebase.firestore();--}}
+{{--                        window.storage = firebase.storage();--}}
+{{--                        window.auth = firebase.auth();--}}
+{{--                    }--}}
+{{--                }--}}
+{{--            }--}}
+{{--        </script>--}}
+{{--        <script src="https://unpkg.com/geofirestore/dist/geofirestore.js"></script>--}}
+{{--        <script src="https://cdn.firebase.com/libs/geofire/5.0.1/geofire.min.js"></script>--}}
+{{--        <script src="{{ asset('js/crypto-js.js') }}"></script>--}}
+{{--        <script src="{{ asset('js/jquery.cookie.js') }}"></script>--}}
+{{--        <script>--}}
+{{--            // Fix jQuery cookie initialization--}}
+{{--            $(document).ready(function() {--}}
+{{--                // Initialize jQuery cookie with proper error handling--}}
+{{--                if (typeof $.cookie === 'undefined') {--}}
+{{--                    console.warn('jQuery cookie plugin not loaded properly');--}}
+{{--                }--}}
+{{--            });--}}
 
-            // Shared hosting optimizations
-            // Prevent memory leaks by cleaning up intervals and Firebase listeners
-            window.addEventListener('beforeunload', function() {
-                // Clear any running intervals
-                for (let i = 1; i < 10000; i++) {
-                    clearInterval(i);
-                    clearTimeout(i);
-                }
+{{--            // Shared hosting optimizations--}}
+{{--            // Prevent memory leaks by cleaning up intervals and Firebase listeners--}}
+{{--            window.addEventListener('beforeunload', function() {--}}
+{{--                // Clear any running intervals--}}
+{{--                for (let i = 1; i < 10000; i++) {--}}
+{{--                    clearInterval(i);--}}
+{{--                    clearTimeout(i);--}}
+{{--                }--}}
 
-                // Clean up Firebase listeners
-                if (typeof orderListener !== 'undefined') {
-                    orderListener();
-                }
-                if (typeof tableListener !== 'undefined') {
-                    tableListener();
-                }
-            });
-        </script>
+{{--                // Clean up Firebase listeners--}}
+{{--                if (typeof orderListener !== 'undefined') {--}}
+{{--                    orderListener();--}}
+{{--                }--}}
+{{--                if (typeof tableListener !== 'undefined') {--}}
+{{--                    tableListener();--}}
+{{--                }--}}
+{{--            });--}}
+{{--        </script>--}}
         <script src="{{ asset('js/jquery.validate.js') }}"></script>
         <script src="{{ asset('js/chosen.jquery.js') }}"></script>
         <script src="{{ asset('js/bootstrap-tagsinput.js') }}"></script>
@@ -560,513 +560,513 @@
 
         @yield('scripts')
 
-        <script type="text/javascript">
-            var route1='{{ route('orders.edit', ':id') }}';
-            var booktable='{{ route('booktable.edit', ':id') }}';
-            var database=firebase.firestore();
-            var pageloadded=0;
+{{--        <script type="text/javascript">--}}
+{{--            var route1='{{ route('orders.edit', ':id') }}';--}}
+{{--            var booktable='{{ route('booktable.edit', ':id') }}';--}}
+{{--            var database=firebase.firestore();--}}
+{{--            var pageloadded=0;--}}
 
-            // Override existing Firebase auth listener to respect impersonation
-            (function() {
-                // Check if we're in the middle of an impersonation
-                const impersonationInProgress = localStorage.getItem('impersonation_in_progress');
-                const impersonationTargetUrl = localStorage.getItem('impersonation_target_url');
+{{--            // Override existing Firebase auth listener to respect impersonation--}}
+{{--            (function() {--}}
+{{--                // Check if we're in the middle of an impersonation--}}
+{{--                const impersonationInProgress = localStorage.getItem('impersonation_in_progress');--}}
+{{--                const impersonationTargetUrl = localStorage.getItem('impersonation_target_url');--}}
 
-                if (impersonationInProgress === 'true' && impersonationTargetUrl) {
-                    console.log('🔐 Impersonation in progress, overriding default redirect');
+{{--                if (impersonationInProgress === 'true' && impersonationTargetUrl) {--}}
+{{--                    console.log('🔐 Impersonation in progress, overriding default redirect');--}}
 
-                    // Override any existing onAuthStateChanged listeners
-                    if (typeof firebase !== 'undefined' && firebase.auth) {
-                        firebase.auth().onAuthStateChanged(function(user) {
-                            if (user && impersonationInProgress === 'true') {
-                                console.log('✅ User authenticated during impersonation, redirecting to:', impersonationTargetUrl);
+{{--                    // Override any existing onAuthStateChanged listeners--}}
+{{--                    if (typeof firebase !== 'undefined' && firebase.auth) {--}}
+{{--                        firebase.auth().onAuthStateChanged(function(user) {--}}
+{{--                            if (user && impersonationInProgress === 'true') {--}}
+{{--                                console.log('✅ User authenticated during impersonation, redirecting to:', impersonationTargetUrl);--}}
 
-                                // Clear the impersonation flags
-                                localStorage.removeItem('impersonation_in_progress');
-                                localStorage.removeItem('impersonation_target_url');
+{{--                                // Clear the impersonation flags--}}
+{{--                                localStorage.removeItem('impersonation_in_progress');--}}
+{{--                                localStorage.removeItem('impersonation_target_url');--}}
 
-                                // Redirect to the target URL
-                                setTimeout(function() {
-                                    window.location.href = impersonationTargetUrl;
-                                }, 500);
-                            }
-                        });
-                    }
-                }
-            })();
+{{--                                // Redirect to the target URL--}}
+{{--                                setTimeout(function() {--}}
+{{--                                    window.location.href = impersonationTargetUrl;--}}
+{{--                                }, 500);--}}
+{{--                            }--}}
+{{--                        });--}}
+{{--                    }--}}
+{{--                }--}}
+{{--            })();--}}
 
-            // Duplicate impersonation script removed - using the improved version above
-            var version=database.collection('settings').doc("Version");
-            var placeholder = database.collection('settings').doc('placeHolderImage');
-                placeholder.get().then(async function (snapshotsimage) {
-                    var placeholderImageData = snapshotsimage.data();
-                    placeholderImage = placeholderImageData.image;
+{{--            // Duplicate impersonation script removed - using the improved version above--}}
+{{--            var version=database.collection('settings').doc("Version");--}}
+{{--            var placeholder = database.collection('settings').doc('placeHolderImage');--}}
+{{--                placeholder.get().then(async function (snapshotsimage) {--}}
+{{--                    var placeholderImageData = snapshotsimage.data();--}}
+{{--                    placeholderImage = placeholderImageData.image;--}}
 
-                })
-            var globalSettings=database.collection('settings').doc("globalSettings");
-            version.get().then(async function(snapshots) {
-                var version_data=snapshots.data();
-                if(version_data==undefined) {
-                    database.collection('settings').doc('Version').set({});
-                }
-                try {
-                    $('.web_version').html("V:"+version_data.web_version);
-                } catch(error) {
-                }
-            });
-            globalSettings.get().then(async function(snapshots) {
-                var globalSettingsData=snapshots.data();
-                if(globalSettingsData==undefined) {
-                    database.collection('settings').doc('globalSettings').set({});
-                }
-                try {
-                    if(getCookie('meta_title')==undefined||getCookie('meta_title')==null||getCookie(
-                        'meta_title')=="") {
-                        document.title=globalSettingsData.meta_title;
-                        setCookie('meta_title',globalSettingsData.meta_title,365);
-                    }
-                    if(getCookie('favicon')==undefined||getCookie('favicon')==null||getCookie('favicon')==
-                        "") {
-                        setCookie('favicon',globalSettingsData.favicon,365);
-                    }
-                } catch(error) {
-                }
-            });
-            function exportData(dt,format,config) {
-                const {
-                    columns,
-                    fileName='Export',
-                }=config;
+{{--                })--}}
+{{--            var globalSettings=database.collection('settings').doc("globalSettings");--}}
+{{--            version.get().then(async function(snapshots) {--}}
+{{--                var version_data=snapshots.data();--}}
+{{--                if(version_data==undefined) {--}}
+{{--                    database.collection('settings').doc('Version').set({});--}}
+{{--                }--}}
+{{--                try {--}}
+{{--                    $('.web_version').html("V:"+version_data.web_version);--}}
+{{--                } catch(error) {--}}
+{{--                }--}}
+{{--            });--}}
+{{--            globalSettings.get().then(async function(snapshots) {--}}
+{{--                var globalSettingsData=snapshots.data();--}}
+{{--                if(globalSettingsData==undefined) {--}}
+{{--                    database.collection('settings').doc('globalSettings').set({});--}}
+{{--                }--}}
+{{--                try {--}}
+{{--                    if(getCookie('meta_title')==undefined||getCookie('meta_title')==null||getCookie(--}}
+{{--                        'meta_title')=="") {--}}
+{{--                        document.title=globalSettingsData.meta_title;--}}
+{{--                        setCookie('meta_title',globalSettingsData.meta_title,365);--}}
+{{--                    }--}}
+{{--                    if(getCookie('favicon')==undefined||getCookie('favicon')==null||getCookie('favicon')==--}}
+{{--                        "") {--}}
+{{--                        setCookie('favicon',globalSettingsData.favicon,365);--}}
+{{--                    }--}}
+{{--                } catch(error) {--}}
+{{--                }--}}
+{{--            });--}}
+{{--            function exportData(dt,format,config) {--}}
+{{--                const {--}}
+{{--                    columns,--}}
+{{--                    fileName='Export',--}}
+{{--                }=config;--}}
 
-                const filteredRecords=dt.ajax.json().filteredData;
+{{--                const filteredRecords=dt.ajax.json().filteredData;--}}
 
-                const fieldTypes={};
-                const dataMapper=(record) => {
-                    return columns.map((col) => {
-                        const value=record[col.key];
-                        if(!fieldTypes[col.key]) {
-                            if(value===true||value===false) {
-                                fieldTypes[col.key]='boolean';
-                            } else if(value&&typeof value==='object'&&value.seconds) {
-                                fieldTypes[col.key]='date';
-                            } else if(typeof value==='number') {
-                                fieldTypes[col.key]='number';
-                            } else if(typeof value==='string') {
-                                fieldTypes[col.key]='string';
-                            } else {
-                                fieldTypes[col.key]='string';
-                            }
-                        }
+{{--                const fieldTypes={};--}}
+{{--                const dataMapper=(record) => {--}}
+{{--                    return columns.map((col) => {--}}
+{{--                        const value=record[col.key];--}}
+{{--                        if(!fieldTypes[col.key]) {--}}
+{{--                            if(value===true||value===false) {--}}
+{{--                                fieldTypes[col.key]='boolean';--}}
+{{--                            } else if(value&&typeof value==='object'&&value.seconds) {--}}
+{{--                                fieldTypes[col.key]='date';--}}
+{{--                            } else if(typeof value==='number') {--}}
+{{--                                fieldTypes[col.key]='number';--}}
+{{--                            } else if(typeof value==='string') {--}}
+{{--                                fieldTypes[col.key]='string';--}}
+{{--                            } else {--}}
+{{--                                fieldTypes[col.key]='string';--}}
+{{--                            }--}}
+{{--                        }--}}
 
-                        switch(fieldTypes[col.key]) {
-                            case 'boolean':
-                                return value? 'Yes':'No';
-                            case 'date':
-                                return value? new Date(value.seconds*1000).toLocaleString():'-';
-                            case 'number':
-                                return typeof value==='number'? value:0;
-                            case 'string':
-                            default:
-                                return value||'-';
-                        }
-                    });
-                };
+{{--                        switch(fieldTypes[col.key]) {--}}
+{{--                            case 'boolean':--}}
+{{--                                return value? 'Yes':'No';--}}
+{{--                            case 'date':--}}
+{{--                                return value? new Date(value.seconds*1000).toLocaleString():'-';--}}
+{{--                            case 'number':--}}
+{{--                                return typeof value==='number'? value:0;--}}
+{{--                            case 'string':--}}
+{{--                            default:--}}
+{{--                                return value||'-';--}}
+{{--                        }--}}
+{{--                    });--}}
+{{--                };--}}
 
-                const tableData=filteredRecords.map(dataMapper);
+{{--                const tableData=filteredRecords.map(dataMapper);--}}
 
-                const data=[columns.map(col => col.header),...tableData];
+{{--                const data=[columns.map(col => col.header),...tableData];--}}
 
-                const columnWidths=columns.map((_,colIndex) =>
-                    Math.max(...data.map(row => row[colIndex]?.toString().length||0))
-                );
+{{--                const columnWidths=columns.map((_,colIndex) =>--}}
+{{--                    Math.max(...data.map(row => row[colIndex]?.toString().length||0))--}}
+{{--                );--}}
 
-                if(format==='csv') {
-                    const csv=data.map(row => row.map(cell => {
-                        if(typeof cell==='string'&&(cell.includes(',')||cell.includes('\n')||cell.includes('"'))) {
-                            return `"${cell.replace(/"/g,'""')}"`;
-                        }
-                        return cell;
-                    }).join(',')).join('\n');
+{{--                if(format==='csv') {--}}
+{{--                    const csv=data.map(row => row.map(cell => {--}}
+{{--                        if(typeof cell==='string'&&(cell.includes(',')||cell.includes('\n')||cell.includes('"'))) {--}}
+{{--                            return `"${cell.replace(/"/g,'""')}"`;--}}
+{{--                        }--}}
+{{--                        return cell;--}}
+{{--                    }).join(',')).join('\n');--}}
 
-                    const blob=new Blob([csv],{type: 'text/csv;charset=utf-8;'});
-                    saveAs(blob,`${fileName}.csv`);
-                } else if(format==='excel') {
-                    const ws=XLSX.utils.aoa_to_sheet(data,{cellDates: true});
+{{--                    const blob=new Blob([csv],{type: 'text/csv;charset=utf-8;'});--}}
+{{--                    saveAs(blob,`${fileName}.csv`);--}}
+{{--                } else if(format==='excel') {--}}
+{{--                    const ws=XLSX.utils.aoa_to_sheet(data,{cellDates: true});--}}
 
-                    ws['!cols']=columnWidths.map(width => ({wch: Math.min(width+5,30)}));
+{{--                    ws['!cols']=columnWidths.map(width => ({wch: Math.min(width+5,30)}));--}}
 
-                    const wb=XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(wb,ws,'Data');
-                    XLSX.writeFile(wb,`${fileName}.xlsx`);
-                } else if(format==='pdf') {
-                    const {jsPDF}=window.jspdf;
-                    const doc=new jsPDF();
+{{--                    const wb=XLSX.utils.book_new();--}}
+{{--                    XLSX.utils.book_append_sheet(wb,ws,'Data');--}}
+{{--                    XLSX.writeFile(wb,`${fileName}.xlsx`);--}}
+{{--                } else if(format==='pdf') {--}}
+{{--                    const {jsPDF}=window.jspdf;--}}
+{{--                    const doc=new jsPDF();--}}
 
-                    const totalLength=columnWidths.reduce((sum,length) => sum+length,0);
-                    const columnStyles={};
-                    columnWidths.forEach((length,index) => {
-                        columnStyles[index]={
-                            cellWidth: (length/totalLength)*180,
-                        };
-                    });
+{{--                    const totalLength=columnWidths.reduce((sum,length) => sum+length,0);--}}
+{{--                    const columnStyles={};--}}
+{{--                    columnWidths.forEach((length,index) => {--}}
+{{--                        columnStyles[index]={--}}
+{{--                            cellWidth: (length/totalLength)*180,--}}
+{{--                        };--}}
+{{--                    });--}}
 
-                    doc.setFontSize(16);
-                    doc.text(fileName,14,16);
+{{--                    doc.setFontSize(16);--}}
+{{--                    doc.text(fileName,14,16);--}}
 
-                    doc.autoTable({
-                        head: [columns.map(col => col.header)],
-                        body: tableData,
-                        startY: 20,
-                        theme: 'striped',
-                        styles: {
-                            cellPadding: 2,
-                            fontSize: 10,
-                        },
-                        columnStyles,
-                        margin: {top: 30,bottom: 30},
-                        didDrawPage: function(data) {
-                            doc.setFontSize(10);
-                            doc.text(fileName,data.settings.margin.left,10);
-                        }
-                    });
-                    doc.save(`${fileName}.pdf`);
-                } else {
-                    console.error('Unsupported format');
-                }
-            }
-            database.collection('users').doc(cuser_id).get().then(async function(usersnapshots) {
-                var userData=usersnapshots.data();
-                var username=userData.firstName+' '+userData.lastName;
+{{--                    doc.autoTable({--}}
+{{--                        head: [columns.map(col => col.header)],--}}
+{{--                        body: tableData,--}}
+{{--                        startY: 20,--}}
+{{--                        theme: 'striped',--}}
+{{--                        styles: {--}}
+{{--                            cellPadding: 2,--}}
+{{--                            fontSize: 10,--}}
+{{--                        },--}}
+{{--                        columnStyles,--}}
+{{--                        margin: {top: 30,bottom: 30},--}}
+{{--                        didDrawPage: function(data) {--}}
+{{--                            doc.setFontSize(10);--}}
+{{--                            doc.text(fileName,data.settings.margin.left,10);--}}
+{{--                        }--}}
+{{--                    });--}}
+{{--                    doc.save(`${fileName}.pdf`);--}}
+{{--                } else {--}}
+{{--                    console.error('Unsupported format');--}}
+{{--                }--}}
+{{--            }--}}
+{{--            database.collection('users').doc(cuser_id).get().then(async function(usersnapshots) {--}}
+{{--                var userData=usersnapshots.data();--}}
+{{--                var username=userData.firstName+' '+userData.lastName;--}}
 
-                if (!userData.hasOwnProperty('profilePictureURL') || userData.profilePictureURL === '' || userData.profilePictureURL === null || userData.profilePictureURL === "null") {
+{{--                if (!userData.hasOwnProperty('profilePictureURL') || userData.profilePictureURL === '' || userData.profilePictureURL === null || userData.profilePictureURL === "null") {--}}
 
-                    $('.profile-pic').attr('src', placeholderImage);
-                }
-                else
-                {
+{{--                    $('.profile-pic').attr('src', placeholderImage);--}}
+{{--                }--}}
+{{--                else--}}
+{{--                {--}}
 
-                    $('.profile-pic').attr('src',userData.profilePictureURL);
-                }
-                $('#username').text(username);
-                database.collection('vendors').where('author','==',cuser_id).get().then(function(snapshots) {
-                    if(snapshots.docs.length>0) {
-                        snapshots.forEach(function(doc) {
-                            var data=doc.data();
-                            // Assuming you have retrieved a Firestore value and stored it in a variable called 'value'
-                            if(data.createdAt instanceof firebase.firestore.Timestamp) {
-                                // 'value' is a Firestore timestamp
-                            } else if(typeof data.createdAt==='object'&&!Array.isArray(data
-                                .createdAt)) {
-                                const combinedValue=(data.createdAt._seconds)*1000+(data
-                                    .createdAt._nanoseconds/1000000);
-                                const regularTimestamp=new Date(combinedValue);
-                                doc.ref.update({
-                                    "createdAt": regularTimestamp
-                                });
-                            }
-                        });
-                    }
-                });
-            });
-            var orderPlacedSubject='';
-            var orderPlacedMsg='';
-            var dineInPlacedSubject='';
-            var dineInPlacedMsg='';
-            var driverAcceptedMsg='';
-            var driverAcceptedSubject='';
-            var scheduleOrderPlacedSubject='';
-            var scheduleOrderPlacedMsg='';
-            database.collection('dynamic_notification').get().then(async function(snapshot) {
-                if(snapshot.docs.length>0) {
-                    snapshot.docs.map(async (listval) => {
-                        val=listval.data();
-                        if(val.type=="dinein_placed") {
-                            dineInPlacedSubject=val.subject;
-                            dineInPlacedMsg=val.message;
-                        } else if(val.type=="order_placed") {
-                            orderPlacedSubject=val.subject;
-                            orderPlacedMsg=val.message;
-                        } else if(val.type=="driver_accepted") {
-                            driverAcceptedSubject=val.subject;
-                            driverAcceptedMsg=val.message;
-                        } else if(val.type=="schedule_order") {
-                            scheduleOrderPlacedSubject=val.subject;
-                            scheduleOrderPlacedMsg=val.message;
-                        }
-                    });
-                }
-            });
-            // Optimize Firebase operations for shared hosting
-            var orderListener = database.collection('restaurant_orders').where('vendor.author',"==",cuser_id).onSnapshot(function(doc) {
-                if(pageloadded) {
-                    doc.docChanges().forEach(function(change) {
-                        val=change.doc.data();
-                        if(change.type=="added") {
-                            if(val.status=="Order Placed") {
-                                if(val.author.firstName) {
-                                }
-                                if(val.scheduleTime!=undefined&&val.scheduleTime!=null&&val
-                                    .scheduleTime!='') {
-                                    $('.order_placed_subject').text(scheduleOrderPlacedSubject);
-                                    $('.order_placed_msg').text(scheduleOrderPlacedMsg);
-                                } else {
-                                    $('.order_placed_subject').text(orderPlacedSubject);
-                                    $('.order_placed_msg').text(orderPlacedMsg);
-                                }
-                                if(route1) {
-                                    jQuery("#notification_add_order_a").attr("href",route1.replace(':id',val
-                                        .id));
-                                }
-                                jQuery("#notification_add_order").modal('show');
-                            }
-                        } else if(change.type=="modified") {
-                            //change.status
-                            if(val.status=="Order Placed") {
-                                if(val.author.firstName) {
-                                }
-                                if(route1) {
-                                    jQuery("#notification_add_order_a").attr("href",route1.replace(':id',val
-                                        .id));
-                                }
-                                if(val.scheduleTime!=undefined&&val.scheduleTime!=null&&val
-                                    .scheduleTime!='') {
-                                    $('.order_placed_subject').text(scheduleOrderPlacedSubject);
-                                    $('.order_placed_msg').text(scheduleOrderPlacedMsg);
-                                } else {
-                                    $('.order_placed_subject').text(orderPlacedSubject);
-                                    $('.order_placed_msg').text(orderPlacedMsg);
-                                }
-                                jQuery("#notification_add_order").modal('show');
-                            } else if(val.status=="Driver Accepted") {
-                                if(val.driver&&val.driver.firstName) {
-                                }
-                                if(route1) {
-                                    jQuery("#notification_accepted_a").attr("href",route1.replace(':id',val
-                                        .id));
-                                }
-                                $('.driver_accepted_subject').text(driverAcceptedSubject);
-                                $('.driver_accepted_msg').text(driverAcceptedMsg);
-                                jQuery("#notification_accepted_order").modal('show');
-                            }
-                        }
-                    });
-                } else {
-                    pageloadded=1;
-                }
-            });
-            var pageloadded_book=0;
-            // Optimize Firebase operations for shared hosting
-            var tableListener = database.collection('booked_table').where('vendor.author',"==",cuser_id).onSnapshot(function(doc) {
-                if(pageloadded_book) {
-                    doc.docChanges().forEach(function(change) {
-                        val=change.doc.data();
-                        if(change.type=="added") {
-                            if(val.status=="Order Placed") {
-                                if(val.author.firstName) {
-                                }
-                                if(route1) {
-                                    jQuery("#notification_book_table_add_order_a").attr("href",booktable
-                                        .replace(':id',val.id));
-                                }
-                                $('.dinein_order_placed_subject').text(dineInPlacedSubject);
-                                $('.dinein_order_placed_msg').text(dineInPlacedMsg);
-                                jQuery("#notification_book_table_add_order").modal('show');
-                            }
-                        }
-                    });
-                } else {
-                    pageloadded_book=1;
-                }
-            });
-            var langcount=0;
-            var languages_list=database.collection('settings').doc('languages');
-            languages_list.get().then(async function(snapshotslang) {
-                snapshotslang=snapshotslang.data();
-                if(snapshotslang!=undefined) {
-                    snapshotslang=snapshotslang.list;
-                    languages_list_main=snapshotslang;
-                    snapshotslang.forEach((data) => {
-                        if(data.isActive==true) {
-                            langcount++;
-                            $('#language_dropdown').append($("<option></option>").attr("value",data.slug)
-                                .text(data.title));
-                        }
-                    });
-                    if(langcount>1) {
-                        $("#language_dropdown_box").css('visibility','visible');
-                    }
-                    <?php if (session()->get('locale')) { ?>
-                    $("#language_dropdown").val("<?php    echo session()->get('locale'); ?>");
-                    <?php } ?>
-                }
-            });
-            var url="{{ route('changeLang') }}";
-            $(".changeLang").change(function() {
-                var slug=$(this).val();
-                languages_list_main.forEach((data) => {
-                    if(slug==data.slug) {
-                        if(data.is_rtl==undefined) {
-                            setCookie('is_rtl','false',365);
-                        } else {
-                            setCookie('is_rtl',data.is_rtl.toString(),365);
-                        }
-                        window.location.href=url+"?lang="+slug;
-                    }
-                });
-            });
-            function setCookie(name,value,days) {
-                var expires="";
-                if(days) {
-                    var date=new Date();
-                    date.setTime(date.getTime()+(days*24*60*60*1000));
-                    expires="; expires="+date.toUTCString();
-                }
-                document.cookie=name+"="+(value||"")+expires+"; path=/";
-            }
-            function getCookie(name) {
-                var nameEQ=name+"=";
-                var ca=document.cookie.split(';');
-                for(var i=0;i<ca.length;i++) {
-                    var c=ca[i];
-                    while(c.charAt(0)==' ') c=c.substring(1,c.length);
-                    if(c.indexOf(nameEQ)==0) return c.substring(nameEQ.length,c.length);
-                }
-                return null;
-            }
-            database.collection('settings').doc("notification_setting").get().then(async function(snapshots) {
-                var data=snapshots.data();
-                if(data!=undefined) {
-                    serviceJson=data.serviceJson;
-                    if(serviceJson!=''&&serviceJson!=null) {
-                        $.ajax({
-                            type: 'POST',
-                            data: {
-                                serviceJson: btoa(serviceJson),
-                            },
-                            url: "{{ route('store-firebase-service') }}",
-                            headers: {
-                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                            },
-                            success: function(data) {}
-                        });
-                    }
-                }
-            });
-            var refDistance = database.collection('settings').doc("RestaurantNearBy");
-            refDistance.get().then(async function (snapshots) {
-                try {
-                    var data = snapshots.data();
-                    var distanceType=data.distanceType.charAt(0).toUpperCase() + data.distanceType.slice(1);
-                    $('#distanceType').val(distanceType);
-                    $('.global_distance_type').html(distanceType);
+{{--                    $('.profile-pic').attr('src',userData.profilePictureURL);--}}
+{{--                }--}}
+{{--                $('#username').text(username);--}}
+{{--                database.collection('vendors').where('author','==',cuser_id).get().then(function(snapshots) {--}}
+{{--                    if(snapshots.docs.length>0) {--}}
+{{--                        snapshots.forEach(function(doc) {--}}
+{{--                            var data=doc.data();--}}
+{{--                            // Assuming you have retrieved a Firestore value and stored it in a variable called 'value'--}}
+{{--                            if(data.createdAt instanceof firebase.firestore.Timestamp) {--}}
+{{--                                // 'value' is a Firestore timestamp--}}
+{{--                            } else if(typeof data.createdAt==='object'&&!Array.isArray(data--}}
+{{--                                .createdAt)) {--}}
+{{--                                const combinedValue=(data.createdAt._seconds)*1000+(data--}}
+{{--                                    .createdAt._nanoseconds/1000000);--}}
+{{--                                const regularTimestamp=new Date(combinedValue);--}}
+{{--                                doc.ref.update({--}}
+{{--                                    "createdAt": regularTimestamp--}}
+{{--                                });--}}
+{{--                            }--}}
+{{--                        });--}}
+{{--                    }--}}
+{{--                });--}}
+{{--            });--}}
+{{--            var orderPlacedSubject='';--}}
+{{--            var orderPlacedMsg='';--}}
+{{--            var dineInPlacedSubject='';--}}
+{{--            var dineInPlacedMsg='';--}}
+{{--            var driverAcceptedMsg='';--}}
+{{--            var driverAcceptedSubject='';--}}
+{{--            var scheduleOrderPlacedSubject='';--}}
+{{--            var scheduleOrderPlacedMsg='';--}}
+{{--            database.collection('dynamic_notification').get().then(async function(snapshot) {--}}
+{{--                if(snapshot.docs.length>0) {--}}
+{{--                    snapshot.docs.map(async (listval) => {--}}
+{{--                        val=listval.data();--}}
+{{--                        if(val.type=="dinein_placed") {--}}
+{{--                            dineInPlacedSubject=val.subject;--}}
+{{--                            dineInPlacedMsg=val.message;--}}
+{{--                        } else if(val.type=="order_placed") {--}}
+{{--                            orderPlacedSubject=val.subject;--}}
+{{--                            orderPlacedMsg=val.message;--}}
+{{--                        } else if(val.type=="driver_accepted") {--}}
+{{--                            driverAcceptedSubject=val.subject;--}}
+{{--                            driverAcceptedMsg=val.message;--}}
+{{--                        } else if(val.type=="schedule_order") {--}}
+{{--                            scheduleOrderPlacedSubject=val.subject;--}}
+{{--                            scheduleOrderPlacedMsg=val.message;--}}
+{{--                        }--}}
+{{--                    });--}}
+{{--                }--}}
+{{--            });--}}
+{{--            // Optimize Firebase operations for shared hosting--}}
+{{--            var orderListener = database.collection('restaurant_orders').where('vendor.author',"==",cuser_id).onSnapshot(function(doc) {--}}
+{{--                if(pageloadded) {--}}
+{{--                    doc.docChanges().forEach(function(change) {--}}
+{{--                        val=change.doc.data();--}}
+{{--                        if(change.type=="added") {--}}
+{{--                            if(val.status=="Order Placed") {--}}
+{{--                                if(val.author.firstName) {--}}
+{{--                                }--}}
+{{--                                if(val.scheduleTime!=undefined&&val.scheduleTime!=null&&val--}}
+{{--                                    .scheduleTime!='') {--}}
+{{--                                    $('.order_placed_subject').text(scheduleOrderPlacedSubject);--}}
+{{--                                    $('.order_placed_msg').text(scheduleOrderPlacedMsg);--}}
+{{--                                } else {--}}
+{{--                                    $('.order_placed_subject').text(orderPlacedSubject);--}}
+{{--                                    $('.order_placed_msg').text(orderPlacedMsg);--}}
+{{--                                }--}}
+{{--                                if(route1) {--}}
+{{--                                    jQuery("#notification_add_order_a").attr("href",route1.replace(':id',val--}}
+{{--                                        .id));--}}
+{{--                                }--}}
+{{--                                jQuery("#notification_add_order").modal('show');--}}
+{{--                            }--}}
+{{--                        } else if(change.type=="modified") {--}}
+{{--                            //change.status--}}
+{{--                            if(val.status=="Order Placed") {--}}
+{{--                                if(val.author.firstName) {--}}
+{{--                                }--}}
+{{--                                if(route1) {--}}
+{{--                                    jQuery("#notification_add_order_a").attr("href",route1.replace(':id',val--}}
+{{--                                        .id));--}}
+{{--                                }--}}
+{{--                                if(val.scheduleTime!=undefined&&val.scheduleTime!=null&&val--}}
+{{--                                    .scheduleTime!='') {--}}
+{{--                                    $('.order_placed_subject').text(scheduleOrderPlacedSubject);--}}
+{{--                                    $('.order_placed_msg').text(scheduleOrderPlacedMsg);--}}
+{{--                                } else {--}}
+{{--                                    $('.order_placed_subject').text(orderPlacedSubject);--}}
+{{--                                    $('.order_placed_msg').text(orderPlacedMsg);--}}
+{{--                                }--}}
+{{--                                jQuery("#notification_add_order").modal('show');--}}
+{{--                            } else if(val.status=="Driver Accepted") {--}}
+{{--                                if(val.driver&&val.driver.firstName) {--}}
+{{--                                }--}}
+{{--                                if(route1) {--}}
+{{--                                    jQuery("#notification_accepted_a").attr("href",route1.replace(':id',val--}}
+{{--                                        .id));--}}
+{{--                                }--}}
+{{--                                $('.driver_accepted_subject').text(driverAcceptedSubject);--}}
+{{--                                $('.driver_accepted_msg').text(driverAcceptedMsg);--}}
+{{--                                jQuery("#notification_accepted_order").modal('show');--}}
+{{--                            }--}}
+{{--                        }--}}
+{{--                    });--}}
+{{--                } else {--}}
+{{--                    pageloadded=1;--}}
+{{--                }--}}
+{{--            });--}}
+{{--            var pageloadded_book=0;--}}
+{{--            // Optimize Firebase operations for shared hosting--}}
+{{--            var tableListener = database.collection('booked_table').where('vendor.author',"==",cuser_id).onSnapshot(function(doc) {--}}
+{{--                if(pageloadded_book) {--}}
+{{--                    doc.docChanges().forEach(function(change) {--}}
+{{--                        val=change.doc.data();--}}
+{{--                        if(change.type=="added") {--}}
+{{--                            if(val.status=="Order Placed") {--}}
+{{--                                if(val.author.firstName) {--}}
+{{--                                }--}}
+{{--                                if(route1) {--}}
+{{--                                    jQuery("#notification_book_table_add_order_a").attr("href",booktable--}}
+{{--                                        .replace(':id',val.id));--}}
+{{--                                }--}}
+{{--                                $('.dinein_order_placed_subject').text(dineInPlacedSubject);--}}
+{{--                                $('.dinein_order_placed_msg').text(dineInPlacedMsg);--}}
+{{--                                jQuery("#notification_book_table_add_order").modal('show');--}}
+{{--                            }--}}
+{{--                        }--}}
+{{--                    });--}}
+{{--                } else {--}}
+{{--                    pageloadded_book=1;--}}
+{{--                }--}}
+{{--            });--}}
+{{--            var langcount=0;--}}
+{{--            var languages_list=database.collection('settings').doc('languages');--}}
+{{--            languages_list.get().then(async function(snapshotslang) {--}}
+{{--                snapshotslang=snapshotslang.data();--}}
+{{--                if(snapshotslang!=undefined) {--}}
+{{--                    snapshotslang=snapshotslang.list;--}}
+{{--                    languages_list_main=snapshotslang;--}}
+{{--                    snapshotslang.forEach((data) => {--}}
+{{--                        if(data.isActive==true) {--}}
+{{--                            langcount++;--}}
+{{--                            $('#language_dropdown').append($("<option></option>").attr("value",data.slug)--}}
+{{--                                .text(data.title));--}}
+{{--                        }--}}
+{{--                    });--}}
+{{--                    if(langcount>1) {--}}
+{{--                        $("#language_dropdown_box").css('visibility','visible');--}}
+{{--                    }--}}
+{{--                    <?php if (session()->get('locale')) { ?>--}}
+{{--                    $("#language_dropdown").val("<?php    echo session()->get('locale'); ?>");--}}
+{{--                    <?php } ?>--}}
+{{--                }--}}
+{{--            });--}}
+{{--            var url="{{ route('changeLang') }}";--}}
+{{--            $(".changeLang").change(function() {--}}
+{{--                var slug=$(this).val();--}}
+{{--                languages_list_main.forEach((data) => {--}}
+{{--                    if(slug==data.slug) {--}}
+{{--                        if(data.is_rtl==undefined) {--}}
+{{--                            setCookie('is_rtl','false',365);--}}
+{{--                        } else {--}}
+{{--                            setCookie('is_rtl',data.is_rtl.toString(),365);--}}
+{{--                        }--}}
+{{--                        window.location.href=url+"?lang="+slug;--}}
+{{--                    }--}}
+{{--                });--}}
+{{--            });--}}
+{{--            function setCookie(name,value,days) {--}}
+{{--                var expires="";--}}
+{{--                if(days) {--}}
+{{--                    var date=new Date();--}}
+{{--                    date.setTime(date.getTime()+(days*24*60*60*1000));--}}
+{{--                    expires="; expires="+date.toUTCString();--}}
+{{--                }--}}
+{{--                document.cookie=name+"="+(value||"")+expires+"; path=/";--}}
+{{--            }--}}
+{{--            function getCookie(name) {--}}
+{{--                var nameEQ=name+"=";--}}
+{{--                var ca=document.cookie.split(';');--}}
+{{--                for(var i=0;i<ca.length;i++) {--}}
+{{--                    var c=ca[i];--}}
+{{--                    while(c.charAt(0)==' ') c=c.substring(1,c.length);--}}
+{{--                    if(c.indexOf(nameEQ)==0) return c.substring(nameEQ.length,c.length);--}}
+{{--                }--}}
+{{--                return null;--}}
+{{--            }--}}
+{{--            database.collection('settings').doc("notification_setting").get().then(async function(snapshots) {--}}
+{{--                var data=snapshots.data();--}}
+{{--                if(data!=undefined) {--}}
+{{--                    serviceJson=data.serviceJson;--}}
+{{--                    if(serviceJson!=''&&serviceJson!=null) {--}}
+{{--                        $.ajax({--}}
+{{--                            type: 'POST',--}}
+{{--                            data: {--}}
+{{--                                serviceJson: btoa(serviceJson),--}}
+{{--                            },--}}
+{{--                            url: "{{ route('store-firebase-service') }}",--}}
+{{--                            headers: {--}}
+{{--                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')--}}
+{{--                            },--}}
+{{--                            success: function(data) {}--}}
+{{--                        });--}}
+{{--                    }--}}
+{{--                }--}}
+{{--            });--}}
+{{--            var refDistance = database.collection('settings').doc("RestaurantNearBy");--}}
+{{--            refDistance.get().then(async function (snapshots) {--}}
+{{--                try {--}}
+{{--                    var data = snapshots.data();--}}
+{{--                    var distanceType=data.distanceType.charAt(0).toUpperCase() + data.distanceType.slice(1);--}}
+{{--                    $('#distanceType').val(distanceType);--}}
+{{--                    $('.global_distance_type').html(distanceType);--}}
 
-                } catch (error) {
+{{--                } catch (error) {--}}
 
-                }
-            });
-            //On delete item delete image also from bucket general code
-            const deleteDocumentWithImage=async (collection,id,singleImageField,arrayImageField) => {
-                // Reference to the Firestore document
-                const docRef=database.collection(collection).doc(id);
-                try {
-                    const doc=await docRef.get();
-                    if(!doc.exists) {
-                        console.log("No document found for deletion");
-                        return;
-                    }
-                    const data=doc.data();
-                    // Deleting single image field
-                    if(singleImageField) {
-                        if(Array.isArray(singleImageField)) {
-                            for(const field of singleImageField) {
-                                const imageUrl=data[field];
-                                if(imageUrl) await deleteImageFromBucket(imageUrl);
-                            }
-                        } else {
-                            const imageUrl=data[singleImageField];
-                            if(imageUrl) await deleteImageFromBucket(imageUrl);
-                        }
-                    }
-                    // Deleting array image field
-                    if(arrayImageField) {
-                        if(Array.isArray(arrayImageField)) {
-                            for(const field of arrayImageField) {
-                                const arrayImages=data[field];
-                                if(arrayImages&&Array.isArray(arrayImages)) {
-                                    for(const imageUrl of arrayImages) {
-                                        if(imageUrl) await deleteImageFromBucket(imageUrl);
-                                    }
-                                }
-                            }
-                        } else {
-                            const arrayImages=data[arrayImageField];
-                            if(arrayImages&&Array.isArray(arrayImages)) {
-                                for(const imageUrl of arrayImages) {
-                                    if(imageUrl) await deleteImageFromBucket(imageUrl);
-                                }
-                            }
-                        }
-                    }
-                    // Deleting images in variants array within item_attribute
-                    const item_attribute=data.item_attribute||{};  // Access item_attribute
-                    const variants=item_attribute.variants||[];    // Access variants array inside item_attribute
-                    if(variants.length>0) {
-                        for(const variant of variants) {
-                            const variantImageUrl=variant.variant_image;
-                            if(variantImageUrl) {
-                                await deleteImageFromBucket(variantImageUrl);
-                            }
-                        }
-                    }
-                    // Optionally delete the Firestore document after image deletion
-                    await docRef.delete();
-                    console.log("Document and images deleted successfully.");
-                } catch(error) {
-                    console.error("Error deleting document and images:",error);
-                }
-            };
-
-
-                 database.collection('users').where('id','==',"{{ $currentUserId }}").get().then(async function(snapshot) {
-                    var data=snapshot.docs[0].data();
-
-                    if(commisionModel||subscriptionModel) {
-                        if(data.hasOwnProperty('subscriptionPlanId')&&data.subscriptionPlanId!=null) {
-                            var isSubscribed=true;
-                        } else {
-                            var isSubscribed=false;
-                        }
-                    } else {
-                        var isSubscribed='';
-                    }
-                    var url="{{ route('setSubcriptionFlag') }}";
-                    $.ajax({
-
-                        type: 'POST',
-
-                        url: url,
-
-                        data: {
-
-                            email: "{{Auth::user()->email}}",
-                            isSubscribed: isSubscribed
-                        },
-                        headers: {
-                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                        },
-
-                        success: function(data) {
-                            if(data.access) {
-
-                            }
-                        }
-
-                    })
-
-                })
+{{--                }--}}
+{{--            });--}}
+{{--            //On delete item delete image also from bucket general code--}}
+{{--            const deleteDocumentWithImage=async (collection,id,singleImageField,arrayImageField) => {--}}
+{{--                // Reference to the Firestore document--}}
+{{--                const docRef=database.collection(collection).doc(id);--}}
+{{--                try {--}}
+{{--                    const doc=await docRef.get();--}}
+{{--                    if(!doc.exists) {--}}
+{{--                        console.log("No document found for deletion");--}}
+{{--                        return;--}}
+{{--                    }--}}
+{{--                    const data=doc.data();--}}
+{{--                    // Deleting single image field--}}
+{{--                    if(singleImageField) {--}}
+{{--                        if(Array.isArray(singleImageField)) {--}}
+{{--                            for(const field of singleImageField) {--}}
+{{--                                const imageUrl=data[field];--}}
+{{--                                if(imageUrl) await deleteImageFromBucket(imageUrl);--}}
+{{--                            }--}}
+{{--                        } else {--}}
+{{--                            const imageUrl=data[singleImageField];--}}
+{{--                            if(imageUrl) await deleteImageFromBucket(imageUrl);--}}
+{{--                        }--}}
+{{--                    }--}}
+{{--                    // Deleting array image field--}}
+{{--                    if(arrayImageField) {--}}
+{{--                        if(Array.isArray(arrayImageField)) {--}}
+{{--                            for(const field of arrayImageField) {--}}
+{{--                                const arrayImages=data[field];--}}
+{{--                                if(arrayImages&&Array.isArray(arrayImages)) {--}}
+{{--                                    for(const imageUrl of arrayImages) {--}}
+{{--                                        if(imageUrl) await deleteImageFromBucket(imageUrl);--}}
+{{--                                    }--}}
+{{--                                }--}}
+{{--                            }--}}
+{{--                        } else {--}}
+{{--                            const arrayImages=data[arrayImageField];--}}
+{{--                            if(arrayImages&&Array.isArray(arrayImages)) {--}}
+{{--                                for(const imageUrl of arrayImages) {--}}
+{{--                                    if(imageUrl) await deleteImageFromBucket(imageUrl);--}}
+{{--                                }--}}
+{{--                            }--}}
+{{--                        }--}}
+{{--                    }--}}
+{{--                    // Deleting images in variants array within item_attribute--}}
+{{--                    const item_attribute=data.item_attribute||{};  // Access item_attribute--}}
+{{--                    const variants=item_attribute.variants||[];    // Access variants array inside item_attribute--}}
+{{--                    if(variants.length>0) {--}}
+{{--                        for(const variant of variants) {--}}
+{{--                            const variantImageUrl=variant.variant_image;--}}
+{{--                            if(variantImageUrl) {--}}
+{{--                                await deleteImageFromBucket(variantImageUrl);--}}
+{{--                            }--}}
+{{--                        }--}}
+{{--                    }--}}
+{{--                    // Optionally delete the Firestore document after image deletion--}}
+{{--                    await docRef.delete();--}}
+{{--                    console.log("Document and images deleted successfully.");--}}
+{{--                } catch(error) {--}}
+{{--                    console.error("Error deleting document and images:",error);--}}
+{{--                }--}}
+{{--            };--}}
 
 
-        </script>
+{{--                 database.collection('users').where('id','==',"{{ $currentUserId }}").get().then(async function(snapshot) {--}}
+{{--                    var data=snapshot.docs[0].data();--}}
+
+{{--                    if(commisionModel||subscriptionModel) {--}}
+{{--                        if(data.hasOwnProperty('subscriptionPlanId')&&data.subscriptionPlanId!=null) {--}}
+{{--                            var isSubscribed=true;--}}
+{{--                        } else {--}}
+{{--                            var isSubscribed=false;--}}
+{{--                        }--}}
+{{--                    } else {--}}
+{{--                        var isSubscribed='';--}}
+{{--                    }--}}
+{{--                    var url="{{ route('setSubcriptionFlag') }}";--}}
+{{--                    $.ajax({--}}
+
+{{--                        type: 'POST',--}}
+
+{{--                        url: url,--}}
+
+{{--                        data: {--}}
+
+{{--                            email: "{{Auth::user()->email}}",--}}
+{{--                            isSubscribed: isSubscribed--}}
+{{--                        },--}}
+{{--                        headers: {--}}
+{{--                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')--}}
+{{--                        },--}}
+
+{{--                        success: function(data) {--}}
+{{--                            if(data.access) {--}}
+
+{{--                            }--}}
+{{--                        }--}}
+
+{{--                    })--}}
+
+{{--                })--}}
+
+
+{{--        </script>--}}
 
         <!-- Cache-based Impersonation Script -->
         <script>

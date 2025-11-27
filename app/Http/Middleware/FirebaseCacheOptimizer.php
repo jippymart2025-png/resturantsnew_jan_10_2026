@@ -10,58 +10,26 @@ use Illuminate\Support\Facades\Log;
 class FirebaseCacheOptimizer
 {
     /**
-     * Handle an incoming request.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
-     * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
+     * Ensure Firebase-related cache entries do not explode on shared hosting.
      */
     public function handle(Request $request, Closure $next)
     {
-        // Optimize Firebase operations with intelligent caching
-        $this->optimizeFirebaseCaching($request);
-        
+        $cacheConfig = config('optimization.cache', []);
+        $maxEntries = (int) ($cacheConfig['firebase_operations_ttl'] ?? 60);
+
+        $cacheKey = 'firebase:cache:tracker';
+        $entries = Cache::get($cacheKey, 0);
+
+        if ($entries > $maxEntries) {
+            Cache::forget($cacheKey);
+            Log::warning('Firebase cache cleared automatically to avoid memory pressure.', [
+                'max_entries' => $maxEntries,
+            ]);
+        }
+
+        Cache::put($cacheKey, min($entries + 1, $maxEntries + 1), now()->addSeconds(10));
+
         return $next($request);
     }
-    
-    /**
-     * Optimize Firebase caching
-     */
-    private function optimizeFirebaseCaching(Request $request)
-    {
-        // Cache Firebase settings for 5 minutes
-        if ($request->is('dashboard') || $request->is('foods/*') || $request->is('orders/*')) {
-            $this->cacheFirebaseSettings();
-        }
-        
-        // Cache user data for 2 minutes
-        if ($request->is('dashboard')) {
-            $this->cacheUserData();
-        }
-    }
-    
-    /**
-     * Cache Firebase settings
-     */
-    private function cacheFirebaseSettings()
-    {
-        $cacheKey = 'firebase_settings_' . auth()->id();
-        
-        if (!Cache::has($cacheKey)) {
-            // This will be populated by the frontend
-            Cache::put($cacheKey, 'cached', 300); // 5 minutes
-        }
-    }
-    
-    /**
-     * Cache user data
-     */
-    private function cacheUserData()
-    {
-        $cacheKey = 'user_data_' . auth()->id();
-        
-        if (!Cache::has($cacheKey)) {
-            Cache::put($cacheKey, 'cached', 120); // 2 minutes
-        }
-    }
 }
+

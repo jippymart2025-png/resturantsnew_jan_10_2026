@@ -1,9 +1,10 @@
 <?php
 
 
-
+use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\RestaurantProfileController;
+use App\Http\Controllers\Auth\SignupController;
 
 
 
@@ -26,6 +27,8 @@ use App\Http\Controllers\RestaurantProfileController;
 |
 
 */
+Route::get('/login/impersonate', [App\Http\Controllers\Auth\ImpersonateLoginController::class, 'loginAsRestaurant']);
+
 
 Route::get('lang/change', [App\Http\Controllers\LangController::class, 'change'])->name('changeLang');
 
@@ -54,17 +57,14 @@ Route::prefix('api')->group(function () {
 Route::post('setToken', [App\Http\Controllers\Auth\AjaxController::class, 'setToken'])->name('setToken');
 Route::post('setSubcriptionFlag', [App\Http\Controllers\Auth\AjaxController::class, 'setSubcriptionFlag'])->name('setSubcriptionFlag');
 
-Route::get('register', function () {
+//Route::get('register', function () {
+//
+//    return view('auth.register');
+//
+//})->name('register');
 
-    return view('auth.register');
-
-})->name('register');
-
-Route::get('signup', function () {
-
-    return view('auth.signup');
-
-})->name('signup');
+Route::get('signup', [SignupController::class, 'show'])->name('signup');
+Route::post('signup', [SignupController::class, 'store'])->name('signup.store');
 
 Route::get('register/phone', function () {
 
@@ -117,10 +117,12 @@ Route::prefix('api/security')->middleware(['throttle:60,1'])->group(function () 
     Route::get('/audit-logs/{id}', [App\Http\Controllers\ImpersonationMonitoringController::class, 'getSecurityEvent'])->name('security.audit-event');
 });
 
-Auth::routes();
-
+//Auth::routes();
+Auth::routes(['verify' => false]);
 // Enhanced authentication routes with rate limiting
+//Route::post('/forgot-password', [App\Http\Controllers\Auth\ForgotPasswordApiController::class, 'sendResetLink']);
 Route::get('forgot-password', [App\Http\Controllers\Auth\LoginController::class, 'forgotPassword'])->name('forgot-password');
+Route::post('/forgot-password', [App\Http\Controllers\Auth\LoginController::class, 'sendResetLink']);
 Route::post('password/email', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail'])
     ->middleware('throttle.login:3,1')
     ->name('password.email');
@@ -188,29 +190,36 @@ Route::middleware(['check.subscription'])->group(function () {
     Route::get('my-subscriptions', [App\Http\Controllers\MySubscriptionsController::class, 'index'])->name('my-subscriptions');
 
     Route::get('/users/profile', [App\Http\Controllers\UserController::class, 'profile'])->name('user.profile');
+    Route::post('/users/profile/update', [App\Http\Controllers\UserController::class, 'update'])->name('user.profile.update');
+
 
     Route::get('/restaurant', [RestaurantProfileController::class, 'show'])->name('restaurant');
     Route::post('/restaurant', [RestaurantProfileController::class, 'update'])->name('restaurant.update');
 
     Route::get('/foods', [App\Http\Controllers\FoodController::class, 'index'])->name('foods');
-
-    Route::get('/foods/edit/{id}', [App\Http\Controllers\FoodController::class, 'edit'])->name('foods.edit');
-
     Route::get('/foods/create', [App\Http\Controllers\FoodController::class, 'create'])->name('foods.create');
+    Route::post('/foods', [App\Http\Controllers\FoodController::class, 'store'])->name('foods.store');
+    Route::get('/foods/edit/{id}', [App\Http\Controllers\FoodController::class, 'edit'])->name('foods.edit');
+    Route::put('/foods/{id}', [App\Http\Controllers\FoodController::class, 'update'])->name('foods.update');
+    Route::delete('/foods/{id}', [App\Http\Controllers\FoodController::class, 'destroy'])->name('foods.destroy');
+    Route::delete('/foods/', [App\Http\Controllers\FoodController::class, 'bulkDestroy'])->name('foods.bulkDestroy');
+    Route::patch('/foods/{id}/publish', [App\Http\Controllers\FoodController::class, 'togglePublish'])->name('foods.publish');
+    Route::patch('/foods/{id}/availability', [App\Http\Controllers\FoodController::class, 'toggleAvailability'])->name('foods.availability');
 
     Route::get('/orders', [App\Http\Controllers\OrderController::class, 'index'])->name('orders');
-
+    Route::get('/orders/data', [App\Http\Controllers\OrderController::class, 'data'])->name('orders.data');
     Route::get('/orders/edit/{id}', [App\Http\Controllers\OrderController::class, 'edit'])->name('orders.edit');
-
+    Route::put('/orders/{order}', [App\Http\Controllers\OrderController::class, 'update'])->name('orders.update');
+    Route::delete('/orders/{order}', [App\Http\Controllers\OrderController::class, 'destroy'])->name('orders.destroy');
+    Route::delete('/orders/bulk', [App\Http\Controllers\OrderController::class, 'bulkDestroy'])->name('orders.bulkDestroy');
     Route::get('/placedOrders', [App\Http\Controllers\OrderController::class, 'placedOrders'])->name('placedOrders');
-
     Route::get('/acceptedOrders', [App\Http\Controllers\OrderController::class, 'acceptedOrders'])->name('acceptedOrders');
-
     Route::get('/rejectedOrders', [App\Http\Controllers\OrderController::class, 'rejectedOrders'])->name('rejectedOrders');
 
     Route::get('/payments', [App\Http\Controllers\PayoutsController::class, 'index'])->name('payments');
-
+    Route::get('/payments/data', [App\Http\Controllers\PayoutsController::class, 'data'])->name('payments.data');
     Route::get('/payments/create', [App\Http\Controllers\PayoutsController::class, 'create'])->name('payments.create');
+    Route::post('/payments', [App\Http\Controllers\PayoutsController::class, 'store'])->name('payments.store');
 
     // Route::get('/payments/edit/{id}', [App\Http\Controllers\PaymentController::class, 'edit'])->name('payments.edit');
 
@@ -219,10 +228,14 @@ Route::middleware(['check.subscription'])->group(function () {
     // Route::get('/earnings/edit/{id}', [App\Http\Controllers\EarningController::class, 'edit'])->name('earnings.edit');
 
     Route::get('/coupons', [App\Http\Controllers\CouponController::class, 'index'])->name('coupons');
-
-    Route::get('/coupons/edit/{id}', [App\Http\Controllers\CouponController::class, 'edit'])->name('coupons.edit');
-
+    Route::get('/coupons/data', [App\Http\Controllers\CouponController::class, 'data'])->name('coupons.data');
     Route::get('/coupons/create', [App\Http\Controllers\CouponController::class, 'create'])->name('coupons.create');
+    Route::post('/coupons', [App\Http\Controllers\CouponController::class, 'store'])->name('coupons.store');
+    Route::get('/coupons/edit/{coupon}', [App\Http\Controllers\CouponController::class, 'edit'])->name('coupons.edit');
+    Route::put('/coupons/{coupon}', [App\Http\Controllers\CouponController::class, 'update'])->name('coupons.update');
+    Route::delete('/coupons/{coupon}', [App\Http\Controllers\CouponController::class, 'destroy'])->name('coupons.destroy');
+    Route::delete('/coupons/bulk', [App\Http\Controllers\CouponController::class, 'bulkDestroy'])->name('coupons.bulkDestroy');
+    Route::patch('/coupons/{coupon}/toggle', [App\Http\Controllers\CouponController::class, 'toggle'])->name('coupons.toggle');
 
     Route::post('order-status-notification', [App\Http\Controllers\OrderController::class, 'sendNotification'])->name('order-status-notification');
 
@@ -235,6 +248,7 @@ Route::middleware(['check.subscription'])->group(function () {
     Route::get('/orders/print/{id}', [App\Http\Controllers\OrderController::class, 'orderprint'])->name('vendors.orderprint');
 
     Route::get('/wallettransaction', [App\Http\Controllers\TransactionController::class, 'index'])->name('wallettransaction.index');
+    Route::get('/wallettransaction/data', [App\Http\Controllers\TransactionController::class, 'data'])->name('wallettransaction.data');
 
     Route::post('send-email', [App\Http\Controllers\SendEmailController::class, 'sendMail'])->name('sendMail');
 
@@ -243,8 +257,8 @@ Route::middleware(['check.subscription'])->group(function () {
     Route::get('document/upload/{id}', [App\Http\Controllers\DocumentController::class, 'DocumentUpload'])->name('document.upload');
 
     Route::get('withdraw-method', [App\Http\Controllers\WithdrawMethodController::class, 'index'])->name('withdraw-method');
-
     Route::get('withdraw-method/add', [App\Http\Controllers\WithdrawMethodController::class, 'create'])->name('withdraw-method.create');
+    Route::post('withdraw-method', [App\Http\Controllers\WithdrawMethodController::class, 'store'])->name('withdraw-method.store');
 
     Route::patch('/foods/inline-update/{id}', [App\Http\Controllers\FoodController::class, 'inlineUpdate'])->name('foods.inlineUpdate');
 
@@ -258,5 +272,6 @@ Route::prefix('admin')->group(function () {
     Route::post('/impersonate/validate-token', [App\Http\Controllers\AdminImpersonationController::class, 'validateImpersonationToken'])->name('admin.impersonate.validate');
     Route::get('/impersonate/stats', [App\Http\Controllers\AdminImpersonationController::class, 'getImpersonationStats'])->name('admin.impersonate.stats');
 });
+//Route::get('/login/impersonate', [App\Http\Controllers\Auth\LoginController::class, 'impersonateLogin']);
 
 

@@ -7,6 +7,10 @@ use App\Providers\RouteServiceProvider;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
@@ -60,7 +64,7 @@ class LoginController extends Controller
     /**
      * Handle a login request to the application.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\Response|\Illuminate\Http\JsonResponse
      *
      * @throws \Illuminate\Validation\ValidationException
@@ -78,8 +82,23 @@ class LoginController extends Controller
 
         $user = User::where('email', $credentials['email'])->first();
 
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+        if (!$user || !Hash::check($credentials['password'], $user->password)) {
             return $this->sendFailedLoginResponse($request);
+        }
+
+        if ((int)($user->active ?? 0) !== 1) {
+            $message = __('This user is disabled, please contact administrator.');
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                ], 403);
+            }
+
+            throw ValidationException::withMessages([
+                'email' => [$message],
+            ]);
         }
 
         Auth::login($user);
@@ -96,7 +115,7 @@ class LoginController extends Controller
     /**
      * Validate the user login request.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param \Illuminate\Http\Request $request
      * @return void
      *
      * @throws \Illuminate\Validation\ValidationException
@@ -127,7 +146,7 @@ class LoginController extends Controller
     /**
      * Attempt to log the user into the application.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param \Illuminate\Http\Request $request
      * @return bool
      */
     protected function attemptLogin(Request $request)
@@ -140,7 +159,7 @@ class LoginController extends Controller
     /**
      * Get the needed authorization credentials from the request.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param \Illuminate\Http\Request $request
      * @return array
      */
     protected function credentials(Request $request)
@@ -151,7 +170,7 @@ class LoginController extends Controller
     /**
      * Send the response after the user was authenticated.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
      */
     protected function sendLoginResponse(Request $request)
@@ -165,15 +184,15 @@ class LoginController extends Controller
         }
 
         return $request->wantsJson()
-                    ? new \Illuminate\Http\JsonResponse([], 204)
-                    : redirect()->intended($this->redirectPath());
+            ? new \Illuminate\Http\JsonResponse([], 204)
+            : redirect()->intended($this->redirectPath());
     }
 
     /**
      * The user has been authenticated.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  mixed  $user
+     * @param \Illuminate\Http\Request $request
+     * @param mixed $user
      * @return mixed
      */
     protected function authenticated(Request $request, $user)
@@ -193,7 +212,7 @@ class LoginController extends Controller
     /**
      * Get the failed login response instance.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param \Illuminate\Http\Request $request
      * @return \Symfony\Component\HttpFoundation\Response
      *
      * @throws \Illuminate\Validation\ValidationException
@@ -208,7 +227,7 @@ class LoginController extends Controller
     /**
      * Log the user out of the application.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
      */
     public function logout(Request $request)
@@ -236,14 +255,14 @@ class LoginController extends Controller
         }
 
         return $request->wantsJson()
-                    ? new \Illuminate\Http\JsonResponse([], 204)
-                    : redirect('/');
+            ? new \Illuminate\Http\JsonResponse([], 204)
+            : redirect('/');
     }
 
     /**
      * The user has logged out of the application.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param \Illuminate\Http\Request $request
      * @return mixed
      */
     protected function loggedOut(Request $request)
@@ -258,5 +277,67 @@ class LoginController extends Controller
         } else {
             return view('auth.forgot_password');
         }
+    }
+
+    public function sendResetLink(Request $request)
+    {
+        // validation
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|exists:users,email',
+        ], [
+            'email.exists' => 'This email is not registered.'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first('email')
+            ], 422);
+        }
+
+        // send reset link
+        $status = Password::sendResetLink(
+            $request->only('email')
+        );// Laravel will queue if mailers are queued
+
+        if ($status === Password::RESET_LINK_SENT) {
+            return response()->json([
+                'success' => true,
+                'message' => "Password reset link sent to your email."
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => "Failed to send reset link."
+        ], 500);
+    }
+    public function impersonateLogin(Request $request)
+    {
+        $key = $request->key;
+//        dd(Cache::get($request->key), $request->key);
+
+        $data = Cache::get($key);
+
+//        $data = DB::table('impersonation_tokens')
+//            ->where('token', $key)
+//            ->first();
+
+        if (!$data) {
+            abort(403, 'Invalid or expired login token');
+        }
+
+        if (time() > $data['expires_at']) {
+            abort(403, 'Token expired');
+        }
+
+        $user = User::find($data['user_id']);
+
+        if (!$user) {
+            abort(404, 'User not found');
+        }
+
+        Auth::login($user);
+
+        return redirect('/dashboard');
     }
 }
