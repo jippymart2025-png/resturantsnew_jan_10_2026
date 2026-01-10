@@ -55,6 +55,7 @@ class UpdateRestaurantRequest extends FormRequest
             'working_hours.*.*.to' => ['nullable', 'date_format:H:i'],
             'filters' => ['nullable', 'array'],
             'filters.*' => ['nullable', 'string', 'max:50'],
+            'subscription_plan_id' => ['required', 'string', 'exists:subscription_plans,id'],
         ];
     }
 
@@ -66,6 +67,7 @@ class UpdateRestaurantRequest extends FormRequest
             'zone_id' => 'zone',
             'cuisine_id' => 'cuisine',
             'category_ids' => 'categories',
+            'subscription_plan_id' => 'subscription plan',
         ];
     }
 }

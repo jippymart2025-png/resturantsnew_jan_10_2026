@@ -42,6 +42,9 @@ class User extends Authenticatable
         'vType',
         'profilePictureURL',
         'vendorID',
+        'subscriptionPlanId',
+        'subscription_plan',
+        'subscriptionExpiryDate',
     ];
 
     protected $hidden = [

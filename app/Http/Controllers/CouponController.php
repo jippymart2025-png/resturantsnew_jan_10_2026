@@ -230,11 +230,37 @@ class CouponController extends Controller
             'cType' => 'required|in:restaurant,mart',
         ];
 
-        return $request->validate($rules, [], [
+        $validated = $request->validate($rules, [], [
             'discount_type' => 'discount type',
             'expires_at' => 'expiry date',
             'minimum_order' => 'minimum order',
         ]);
+
+        // Additional validation: discount cannot exceed minimum order amount for Fix Price type
+        if ($validated['discount_type'] === 'Fix Price') {
+            $discount = (float)$validated['discount'];
+            $minimumOrder = $validated['minimum_order'] !== null && $validated['minimum_order'] !== '' 
+                ? (float)$validated['minimum_order'] 
+                : null;
+
+            if ($minimumOrder !== null && $discount > $minimumOrder) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'discount' => 'Discount amount cannot be greater than minimum order amount.'
+                ]);
+            }
+        }
+
+        // Additional validation: percentage discount cannot exceed 100%
+        if ($validated['discount_type'] === 'Percentage') {
+            $discount = (float)$validated['discount'];
+            if ($discount > 100) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'discount' => 'Percentage discount cannot exceed 100%.'
+                ]);
+            }
+        }
+
+        return $validated;
     }
 
     protected function fillCoupon(Coupon $coupon, array $data, Request $request, Vendor $vendor): void

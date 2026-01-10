@@ -32,6 +32,8 @@ class VendorProduct extends Model
         'addOnsPrice' => 'array',
         'photos' => 'array',
         'product_specification' => 'array',
+        'available_days' => 'array',
+        'available_timings' => 'array',
     ];
 
     public function category()

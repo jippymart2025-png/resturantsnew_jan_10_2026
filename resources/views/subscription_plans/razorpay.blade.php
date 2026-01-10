@@ -137,11 +137,9 @@
 </div>
      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
      <script src="{{ asset('assets/plugins/select2/dist/js/select2.min.js') }}"></script>
+     {{-- Keep Firebase Storage only for images --}}
      <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-app.js"></script>
-     <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-firestore.js"></script>
      <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-storage.js"></script>
-     <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-auth.js"></script>
-     <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-database.js"></script>
      <script src="{{ asset('js/crypto-js.js') }}"></script>
      <script src="{{ asset('js/jquery.cookie.js') }}"></script>
      <script src="{{ asset('js/jquery.validate.js') }}"></script>

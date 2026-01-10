@@ -24,12 +24,58 @@
                     }
                 </style>
                 @if (session('success'))
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        {{ session('success') }}
-                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <div class="alert alert-success alert-dismissible fade show mb-4" role="alert" id="food-success-message-alert" style="display: block !important; opacity: 1 !important; visibility: visible !important; z-index: 9999 !important;">
+                        <i class="fa fa-check-circle mr-2"></i>
+                        <strong>{{ __('Success!') }}</strong> {{ session('success') }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close" onclick="this.parentElement.style.display='none'">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
+                    <script>
+                        // Ensure success message is visible and persists
+                        (function() {
+                            // Wait for DOM to be fully loaded
+                            function showSuccessMessage() {
+                                const alert = document.getElementById('food-success-message-alert');
+                                if (alert) {
+                                    // Force visibility
+                                    alert.style.display = 'block';
+                                    alert.style.opacity = '1';
+                                    alert.style.visibility = 'visible';
+                                    alert.style.zIndex = '9999';
+                                    alert.classList.add('show');
+                                    alert.classList.remove('fade');
+                                    
+                                    // Scroll to top to show the message
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    
+                                    // Auto-dismiss after 10 seconds
+                                    setTimeout(function() {
+                                        if (alert && alert.parentNode) {
+                                            alert.style.transition = 'opacity 0.3s';
+                                            alert.style.opacity = '0';
+                                            setTimeout(function() {
+                                                if (alert && alert.parentNode) {
+                                                    alert.remove();
+                                                }
+                                            }, 300);
+                                        }
+                                    }, 10000);
+                                }
+                            }
+                            
+                            // Try immediately
+                            showSuccessMessage();
+                            
+                            // Also try after DOM is ready
+                            if (document.readyState === 'loading') {
+                                document.addEventListener('DOMContentLoaded', showSuccessMessage);
+                            }
+                            
+                            // Fallback after a short delay
+                            setTimeout(showSuccessMessage, 100);
+                        })();
+                    </script>
                 @endif
 
                 @if (session('error'))
@@ -71,13 +117,24 @@
 {{--                                </button>--}}
 {{--                        </div>--}}
         </div>
+
                         @if(request()->has('category'))
                             <div class="mt-2">
                                 <a href="{{ route('foods') }}" class="small">Clear filter</a>
                             </div>
                         @endif
-                    </form>
+                        </form>
+
                     <div class="text-right">
+
+                            <!-- Simple Warning Message on LEFT side of button -->
+                            <span class="mr-2 d-inline-flex align-items-center text-warning font-weight-bold">
+                            <i class="fa fa-exclamation-circle mr-1"></i>
+                            <span>Please Click On Recalculate prices once When You Did  Any Changes On Plans Or Gst </span>
+                             </span>
+                        <button type="button" id="recalculate-prices-btn" class="btn btn-warning mr-2" title="Recalculate all product prices based on current subscription status">
+                            <i class="fa fa-calculator mr-1"></i> Recalculate Prices
+                        </button>
                         <a href="{{ route('foods.create') }}" class="btn btn-primary">
                             <i class="fa fa-plus mr-1"></i> Create Food
                         </a>
@@ -102,10 +159,14 @@
                                 <th>Image</th>
                                 <th>Food</th>
                                 <th>Category</th>
-                                <th>Price</th>
+                                <th>Merchant Price</th>
+                                <th>Online Price</th>
                                 <th>Discount</th>
+                                <th>GST Status</th>
+                                <th>Subscription Type</th>
                                 <th>Publish</th>
                                 <th>Available</th>
+                                <th>Availability Schedule</th>
                                 <th>Updated</th>
                                 <th class="text-right">Actions</th>
                             </tr>
@@ -133,19 +194,50 @@
                                     </td>
                                     <td>{{ $food->category->title ?? '—' }}</td>
                                     <td>
-                                        <span class="badge badge-light editable-price"
-                                              data-url="{{ route('foods.inlineUpdate', $food->id) }}"
-                                              data-field="price"
-                                              data-value="{{ $food->price ?? 0 }}">
-                                            {{ number_format((float) ($food->price ?? 0), 2) }}
+                                        <span class="badge badge-light">
+                                            {{ $food->merchant_price ? number_format((float) $food->merchant_price, 2) : '—' }}
                                         </span>
                                     </td>
                                     <td>
+                                        @php
+                                            // Always use stored price (price column in DB) - manual edits should be preserved
+                                            $displayPrice = (float) ($food->price ?? 0);
+                                            $editPrice = (float) ($food->price ?? 0);
+                                        @endphp
                                         <span class="badge badge-light editable-price"
+                                              data-field="price"
+                                              data-value="{{ $editPrice }}"
                                               data-url="{{ route('foods.inlineUpdate', $food->id) }}"
-                                              data-field="disPrice"
-                                              data-value="{{ $food->disPrice ?? 0 }}">
-                                            {{ number_format((float) ($food->disPrice ?? 0), 2) }}
+                                              style="cursor: pointer;"
+                                              title="Click to edit online price">
+                                            {{ number_format($displayPrice, 2) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @php
+                                            $discountPrice = (float) ($food->disPrice ?? 0);
+                                            $onlinePrice = (float) ($food->price ?? 0); // Always use stored price
+                                            $hasError = $discountPrice > 0 && $onlinePrice > 0 && $discountPrice > $onlinePrice;
+                                        @endphp
+                                        <span class="badge {{ $hasError ? 'badge-danger' : 'badge-light' }}"
+                                              title="{{ $hasError ? 'Discount price cannot be greater than online price for product \"' . $food->name . '\".' : '' }}">
+                                            {{ number_format($discountPrice, 2) }}
+                                            @if($hasError)
+                                                <i class="fa fa-exclamation-triangle ml-1" style="font-size: 0.9em;"></i>
+                                            @endif
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @php
+                                            $vendorGst = $vendor->gst ?? 0;
+                                        @endphp
+                                        <span class="badge {{ $vendorGst ? 'badge-success' : 'badge-warning' }}">
+                                            {{ $vendorGst ? 'Yes' : 'No' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-info">
+                                            {{ $hasSubscription ? ($planType === 'subscription' ? 'Subscription' : 'Commission') : 'Commission' }}
                                         </span>
                                     </td>
                                     <td>
@@ -191,6 +283,69 @@
                                                 {{ $food->isAvailable ? 'Yes' : 'No' }}
                                             </button>
                                         </form>
+                                    </td>
+                                    <td>
+                                        @php
+                                            $availableDays = is_array($food->available_days) ? $food->available_days : (json_decode($food->available_days, true) ?? []);
+                                            $availableTimings = is_array($food->available_timings) ? $food->available_timings : (json_decode($food->available_timings, true) ?? []);
+
+                                            // Convert old format to new format for display (backward compatibility)
+                                            if (!empty($availableTimings) && !isset($availableTimings[0]['day'])) {
+                                                // Old format: { "Monday": ["09:00-12:00"] }
+                                                $convertedTimings = [];
+                                                foreach ($availableTimings as $day => $slots) {
+                                                    if (is_array($slots)) {
+                                                        $timeslot = [];
+                                                        foreach ($slots as $slot) {
+                                                            if (strpos($slot, '-') !== false) {
+                                                                list($from, $to) = explode('-', $slot, 2);
+                                                                $timeslot[] = ['from' => trim($from), 'to' => trim($to)];
+                                                            }
+                                                        }
+                                                        if (!empty($timeslot)) {
+                                                            $convertedTimings[] = ['day' => $day, 'timeslot' => $timeslot];
+                                                        }
+                                                    }
+                                                }
+                                                $availableTimings = $convertedTimings;
+                                            }
+
+                                            // Create lookup array for display
+                                            $timingsByDay = [];
+                                            foreach ($availableTimings as $timing) {
+                                                if (isset($timing['day']) && isset($timing['timeslot'])) {
+                                                    $timingsByDay[$timing['day']] = $timing['timeslot'];
+                                                }
+                                            }
+                                        @endphp
+                                        @if (!empty($availableDays))
+                                            <div class="small">
+                                                <div class="font-weight-bold mb-1">
+                                                    <i class="fa fa-calendar mr-1"></i>
+                                                    {{ implode(', ', $availableDays) }}
+                                                </div>
+                                                @if (!empty($timingsByDay))
+                                                    <div class="text-muted">
+                                                        @foreach ($availableDays as $day)
+                                                            @php
+                                                                $daySlots = $timingsByDay[$day] ?? [];
+                                                                $daySlots = is_array($daySlots) ? $daySlots : [];
+                                                            @endphp
+                                                            @if (!empty($daySlots))
+                                                                <div class="mb-1">
+                                                                    <strong>{{ $day }}:</strong>
+                                                                    @foreach ($daySlots as $slot)
+                                                                        {{ ($slot['from'] ?? '') . ' – ' . ($slot['to'] ?? '') }}@if(!$loop->last), @endif
+                                                                    @endforeach
+                                                                </div>
+                                                            @endif
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @else
+                                            <span class="text-muted small">—</span>
+                                        @endif
                                     </td>
                                     <td>{{ $food->formattedUpdatedAt }}</td>
                                     <td class="text-right">
@@ -426,6 +581,48 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.querySelectorAll('.editable-price').forEach(attachInlineEditor);
+
+    // Recalculate prices button
+    const recalculateBtn = document.getElementById('recalculate-prices-btn');
+    if (recalculateBtn) {
+        recalculateBtn.addEventListener('click', function() {
+            if (!confirm('This will recalculate all product online prices based on your current subscription status. Continue?')) {
+                return;
+            }
+
+            const btn = this;
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Recalculating...';
+
+            fetch('{{ route("foods.recalculatePrices") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Successfully recalculated prices for ' + data.products_updated + ' product(s).');
+                    // Reload page to show updated prices
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to recalculate prices.'));
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to recalculate prices. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            });
+        });
+    }
         });
     </script>
 @endsection

@@ -29,13 +29,13 @@ class Controller extends BaseController
 
         return Cache::remember($cacheKey, 300, function () use ($user) {
             if ($user->vendorID) {
-                $vendor = Vendor::select(['id', 'title', 'author'])->where('id', $user->vendorID)->first();
+                $vendor = Vendor::select(['id', 'title', 'author', 'subscriptionPlanId', 'gst'])->where('id', $user->vendorID)->first();
                 if ($vendor) {
                     return $vendor;
                 }
             }
 
-            $vendor = Vendor::select(['id', 'title', 'author'])->where('author', $user->firebase_id ?? $user->id)->first();
+            $vendor = Vendor::select(['id', 'title', 'author', 'subscriptionPlanId', 'gst'])->where('author', $user->firebase_id ?? $user->id)->first();
             if (!$vendor) {
                 abort(403, 'Vendor profile not found.');
             }

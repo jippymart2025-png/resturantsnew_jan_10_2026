@@ -305,87 +305,52 @@
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="{{ asset('assets/plugins/select2/dist/js/select2.min.js') }}"></script>
+    {{-- Keep Firebase Storage only for images --}}
     <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-storage.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-database.js"></script>
     <script src="{{ asset('js/crypto-js.js') }}"></script>
     <script src="{{ asset('js/jquery.cookie.js') }}"></script>
     <script src="{{ asset('js/jquery.validate.js') }}"></script>
 
     <script type="text/javascript">
-    
         jQuery('#data-table_processing').show();
 
-        var database = firebase.firestore();
-        var currentCurrency = '';
-        var currencyAtRight = false;
-        var decimal_degits = 0;
-        var currencyData = '';
-        var refCurrency = database.collection('currencies').where('isActive', '==', true);
-        refCurrency.get().then(async function(snapshots) {
-            currencyData = snapshots.docs[0].data();
-            currentCurrency = currencyData.symbol;
-            currencyAtRight = currencyData.symbolAtRight;
-            if (currencyData.decimal_degits) {
-                decimal_degits = currencyData.decimal_degits;
-            }
-        });
+        // Data from controller (MySQL) - NO Firebase Firestore
+        var currentCurrency = "{{ $currencyData['symbol'] }}";
+        var currencyAtRight = {{ $currencyData['symbolAtRight'] ? 'true' : 'false' }};
+        var decimal_degits = {{ $currencyData['decimal_degits'] }};
+        var currencyData = @json($currencyData);
+        var userId = "{{ $userId }}";
+        var planId = "{{ $planId }}";
+        var planData = @json($planData);
+        var vendorId = "{{ $vendorId ?? '' }}";
+        var wallet_amount = {{ $walletAmount ?? 0 }};
+        var commisionModel = {{ $commisionModel ? 'true' : 'false' }};
+        var AdminCommission = "{{ $adminCommission }}";
+        var commissionType = "{{ $commissionType }}";
+        var activeSubscriptionData = @json($activeSubscriptionData);
 
-        var wallet_amount = 0;
-        var fcmToken = '';
-        var id_order = database.collection('tmp').doc().id;
-        var userId = "<?php echo $userId; ?>";
-        var planId = "<?php echo $planId; ?>";
-        var planData = '';
-        var expiryDay = '';
-        var vendorId=null;
-        var commisionModel = false;
-        var AdminCommission = '';
-        var businessModel = database.collection('settings').doc("AdminCommission");
-        businessModel.get().then(async function(snapshots) {
-            var commissionSetting = snapshots.data();
-            if (commissionSetting.isEnabled == true) {
-                commisionModel = true;
-            }
-            if (commissionSetting.commissionType == "Percent") {
-                AdminCommission = commissionSetting.fix_commission + '' + '%';
+        // Format admin commission
+        if (commisionModel && commissionType == "Percent") {
+            AdminCommission = AdminCommission + '%';
+        } else if (commisionModel) {
+            if (currencyAtRight) {
+                AdminCommission = parseFloat(AdminCommission).toFixed(decimal_degits) + currentCurrency;
             } else {
-                if (currencyAtRight) {
-                    AdminCommission = commissionSetting.fix_commission.toFixed(decimal_degits) + currentCurrency;
-                } else {
-                    AdminCommission = currentCurrency + commissionSetting.fix_commission.toFixed(decimal_degits);
-                }
+                AdminCommission = currentCurrency + parseFloat(AdminCommission).toFixed(decimal_degits);
             }
-        });
-        database.collection('users').where('id','==',userId).get().then(async function(snapshot) {
-                var userData=snapshot.docs[0].data();
-                if(userData.hasOwnProperty('vendorID')&&userData.vendorID!=''&&userData.vendorID!=null) {
-                    vendorId=userData.vendorID;
-                }
-            });
-        var activeSubscriptionData = '';
-        var activeSubscriptionId = '';
-        var subscriptionHistory = database.collection('subscription_history').where('user_id', '==', userId).orderBy('createdAt', 'desc');
-        subscriptionHistory.get().then(async function(snapshot) {
-            if (snapshot.docs.length > 0) {
-                var data = snapshot.docs[0].data();
-                activeSubscriptionId = data.subscription_plan.id;
-                activeSubscriptionData = data.subscription_plan;                
-            }
-        });
+        }
 
-        var planRef = database.collection('subscription_plans').where('id', '==', planId);
-        planRef.get().then(async function(snapshot) {
-            planData = snapshot.docs[0].data();
-            if(planData.expiryDay!='-1') {
+        // Calculate expiry date
+        var expiryDay = null;
+        if (planData && planData.expiryDay != '-1') {
             var currentDate = new Date();
             currentDate.setDate(currentDate.getDate() + parseInt(planData.expiryDay));
-            expiryDay = firebase.firestore.Timestamp.fromDate(currentDate);
-            }else{
-                expiryDay=null
-            }
+            expiryDay = currentDate.toISOString();
+        }
+
+        // Display plan price
+        if (planData && planData.price) {
             if (currencyAtRight) {
                 var html = parseFloat(planData.price).toFixed(decimal_degits) + currentCurrency;
             } else {
@@ -393,8 +358,12 @@
             }
             $('#subtotal').html(html);
             $('#sub_total').val(planData.price);
+        }
+
+        // Show plan details
+        if (planData) {
             showPlanDetail(activeSubscriptionData, planData);
-        });
+        }
 
         async function showPlanDetail(activePlan='', choosedPlan) {
             
@@ -507,19 +476,18 @@
             jQuery('#data-table_processing').hide();
         }
 
-        var userDetailsRef = database.collection('users').where('id', "==", userId);
-        var uservendorDetailsRef = database.collection('users');
-        var razorpaySettings = database.collection('settings').doc('razorpaySettings');
-        var stripeSettings = database.collection('settings').doc('stripeSettings');
-        var paypalSettings = database.collection('settings').doc('paypalSettings');
-        var walletSettings = database.collection('settings').doc('walletSettings');
-        var payFastSettings = database.collection('settings').doc('payFastSettings');
-        var payStackSettings = database.collection('settings').doc('payStack');
-        var flutterWaveSettings = database.collection('settings').doc('flutterWave');
-        var MercadoPagoSettings = database.collection('settings').doc('MercadoPago');
-        var XenditSettings = database.collection('settings').doc('xendit_settings');
-        var Midtrans_settings = database.collection('settings').doc('midtrans_settings');
-        var OrangePaySettings = database.collection('settings').doc('orange_money_settings');
+        // Payment gateway settings from MySQL (passed from controller)
+        var razorpaySettings = @json($razorpaySettings ?? []);
+        var stripeSettings = @json($stripeSettings ?? []);
+        var paypalSettings = @json($paypalSettings ?? []);
+        var walletSettings = @json($walletSettings ?? []);
+        var payFastSettings = @json($payFastSettings ?? []);
+        var payStackSettings = @json($payStackSettings ?? []);
+        var flutterWaveSettings = @json($flutterWaveSettings ?? []);
+        var MercadoPagoSettings = @json($MercadoPagoSettings ?? []);
+        var XenditSettings = @json($XenditSettings ?? []);
+        var Midtrans_settings = @json($Midtrans_settings ?? []);
+        var OrangePaySettings = @json($OrangePaySettings ?? []);
 
         var authorName = '';
         var authorEmail = '';
@@ -530,226 +498,153 @@
         });
 
         async function getUserDetails() {
-
-            razorpaySettings.get().then(async function(razorpaySettingsSnapshots) {
-                razorpaySetting = razorpaySettingsSnapshots.data();
-                if (razorpaySetting.isEnabled) {
-                    var isEnabled = razorpaySetting.isEnabled;
-                    $("#isEnabled").val(isEnabled);
-                    var isSandboxEnabled = razorpaySetting.isSandboxEnabled;
-                    $("#isSandboxEnabled").val(isSandboxEnabled);
-                    var razorpayKey = razorpaySetting.razorpayKey;
-                    $("#razorpayKey").val(razorpayKey);
-                    var razorpaySecret = razorpaySetting.razorpaySecret;
-                    $("#razorpaySecret").val(razorpaySecret);
-                    if(isEnabled){
-                        $("#razorpay_box").removeClass('d-none');
-                    }
+            // Razorpay settings from MySQL
+            if (razorpaySettings && razorpaySettings.isEnabled) {
+                $("#isEnabled").val(razorpaySettings.isEnabled);
+                $("#isSandboxEnabled").val(razorpaySettings.isSandboxEnabled || false);
+                $("#razorpayKey").val(razorpaySettings.razorpayKey || '');
+                $("#razorpaySecret").val(razorpaySettings.razorpaySecret || '');
+                if (razorpaySettings.isEnabled) {
+                    $("#razorpay_box").removeClass('d-none');
                 }
-            });
+            }
 
-            stripeSettings.get().then(async function(stripeSettingsSnapshots) {
-                stripeSetting = stripeSettingsSnapshots.data();
-                if (stripeSetting.isEnabled) {
-                    var isEnabled = stripeSetting.isEnabled;
-                    var isSandboxEnabled = stripeSetting.isSandboxEnabled;
-                    $("#isStripeSandboxEnabled").val(isSandboxEnabled);
-                    var stripeKey = stripeSetting.stripeKey;
-                    $("#stripeKey").val(stripeKey);
-                    var stripeSecret = stripeSetting.stripeSecret;
-                    $("#stripeSecret").val(stripeSecret);
-                    if(isEnabled){
-                        $("#stripe_box").removeClass('d-none');
-                    }
+            // Stripe settings from MySQL
+            if (stripeSettings && stripeSettings.isEnabled) {
+                $("#isStripeSandboxEnabled").val(stripeSettings.isSandboxEnabled || false);
+                $("#stripeKey").val(stripeSettings.stripeKey || '');
+                $("#stripeSecret").val(stripeSettings.stripeSecret || '');
+                if (stripeSettings.isEnabled) {
+                    $("#stripe_box").removeClass('d-none');
                 }
-            });
+            }
 
-            paypalSettings.get().then(async function(paypalSettingsSnapshots) {
-                paypalSetting = paypalSettingsSnapshots.data();
-                if (paypalSetting.isEnabled) {
-                    var isEnabled = paypalSetting.isEnabled;
-                    var isLive = paypalSetting.isLive;
-                    if (isLive) {
-                        $("#ispaypalSandboxEnabled").val(false);
-                    } else {
-                        $("#ispaypalSandboxEnabled").val(true);
-                    }
-                    var paypalAppId = paypalSetting.paypalClient;
-                    $("#paypalKey").val(paypalSetting.paypalClient);
-                    var paypalSecret = paypalSetting.paypalSecret;
-                    $("#paypalSecret").val(paypalSecret);
-                    if(isEnabled){
-                        $("#paypal_box").removeClass('d-none');
-                    }
+            // PayPal settings from MySQL
+            if (paypalSettings && paypalSettings.isEnabled) {
+                if (paypalSettings.isLive) {
+                    $("#ispaypalSandboxEnabled").val(false);
+                } else {
+                    $("#ispaypalSandboxEnabled").val(true);
                 }
-            });
-
-            walletSettings.get().then(async function(walletSettingsSnapshots) {
-                walletSetting = walletSettingsSnapshots.data();
-                if (walletSetting.isEnabled) {
-                    var isEnabled = walletSetting.isEnabled;
-                    if (isEnabled) {
-                        $("#walletenabled").val(true);
-                        $("#wallet_box").removeClass('d-none');
-                    } else {
-                        $("#walletenabled").val(false);
-                        $("#wallet_box").addClass('d-none');
-                    }
+                $("#paypalKey").val(paypalSettings.paypalClient || '');
+                $("#paypalSecret").val(paypalSettings.paypalSecret || '');
+                if (paypalSettings.isEnabled) {
+                    $("#paypal_box").removeClass('d-none');
                 }
-            });
+            }
 
-            payFastSettings.get().then(async function(payfastSettingsSnapshots) {
-                payFastSetting = payfastSettingsSnapshots.data();
-                if (payFastSetting.isEnable) {
-                    var isEnable = payFastSetting.isEnable;
-                    $("#payfast_isEnabled").val(isEnable);
-                    var isSandboxEnabled = payFastSetting.isSandbox;
-                    $("#payfast_isSandbox").val(isSandboxEnabled);
-                    var merchant_id = payFastSetting.merchant_id;
-                    $("#payfast_merchant_id").val(merchant_id);
-                    var merchant_key = payFastSetting.merchant_key;
-                    $("#payfast_merchant_key").val(merchant_key);
-                    var return_url = payFastSetting.return_url;
-                    $("#payfast_return_url").val(return_url);
-                    var cancel_url = payFastSetting.cancel_url;
-                    $("#payfast_cancel_url").val(cancel_url);
-                    var notify_url = payFastSetting.notify_url;
-                    $("#payfast_notify_url").val(notify_url);
-                    if(isEnable){
-                        $("#payfast_box").removeClass('d-none');
-                    }
+            // Wallet settings from MySQL
+            if (walletSettings && walletSettings.isEnabled) {
+                $("#walletenabled").val(true);
+                $("#wallet_box").removeClass('d-none');
+            } else {
+                $("#walletenabled").val(false);
+                $("#wallet_box").addClass('d-none');
+            }
+
+            // PayFast settings from MySQL
+            if (payFastSettings && payFastSettings.isEnable) {
+                $("#payfast_isEnabled").val(payFastSettings.isEnable);
+                $("#payfast_isSandbox").val(payFastSettings.isSandbox || false);
+                $("#payfast_merchant_id").val(payFastSettings.merchant_id || '');
+                $("#payfast_merchant_key").val(payFastSettings.merchant_key || '');
+                $("#payfast_return_url").val(payFastSettings.return_url || '');
+                $("#payfast_cancel_url").val(payFastSettings.cancel_url || '');
+                $("#payfast_notify_url").val(payFastSettings.notify_url || '');
+                if (payFastSettings.isEnable) {
+                    $("#payfast_box").removeClass('d-none');
                 }
-            });
-            payStackSettings.get().then(async function(payStackSettingsSnapshots) {
-                payStackSetting = payStackSettingsSnapshots.data();
-                if (payStackSetting.isEnable) {
-                    var isEnable = payStackSetting.isEnable;
-                    $("#paystack_isEnabled").val(isEnable);
-                    var isSandboxEnabled = payStackSetting.isSandbox;
-                    $("#paystack_isSandbox").val(isSandboxEnabled);
-                    var publicKey = payStackSetting.publicKey;
-                    $("#paystack_public_key").val(publicKey);
-                    var secretKey = payStackSetting.secretKey;
-                    $("#paystack_secret_key").val(secretKey);
-                    if(isEnable){
-                        $("#paystack_box").removeClass('d-none');
-                    }
+            }
+
+            // PayStack settings from MySQL
+            if (payStackSettings && payStackSettings.isEnable) {
+                $("#paystack_isEnabled").val(payStackSettings.isEnable);
+                $("#paystack_isSandbox").val(payStackSettings.isSandbox || false);
+                $("#paystack_public_key").val(payStackSettings.publicKey || '');
+                $("#paystack_secret_key").val(payStackSettings.secretKey || '');
+                if (payStackSettings.isEnable) {
+                    $("#paystack_box").removeClass('d-none');
                 }
-            });
+            }
 
-            flutterWaveSettings.get().then(async function(flutterWaveSettingsSnapshots) {
-                flutterWaveSetting = flutterWaveSettingsSnapshots.data();
-                if (flutterWaveSetting.isEnable) {
-                    var isEnable = flutterWaveSetting.isEnable;
-                    $("#flutterWave_isEnabled").val(isEnable);
-                    var isSandboxEnabled = flutterWaveSetting.isSandbox;
-                    $("#flutterWave_isSandbox").val(isSandboxEnabled);
-                    var encryptionKey = flutterWaveSetting.encryptionKey;
-                    $("#flutterWave_encryption_key").val(encryptionKey);
-                    var secretKey = flutterWaveSetting.secretKey;
-                    $("#flutterWave_secret_key").val(secretKey);
-                    var publicKey = flutterWaveSetting.publicKey;
-                    $("#flutterWave_public_key").val(publicKey);
-                    if(isEnable){
-                        $("#flutterWave_box").removeClass('d-none');
-                    }
+            // FlutterWave settings from MySQL
+            if (flutterWaveSettings && flutterWaveSettings.isEnable) {
+                $("#flutterWave_isEnabled").val(flutterWaveSettings.isEnable);
+                $("#flutterWave_isSandbox").val(flutterWaveSettings.isSandbox || false);
+                $("#flutterWave_encryption_key").val(flutterWaveSettings.encryptionKey || '');
+                $("#flutterWave_secret_key").val(flutterWaveSettings.secretKey || '');
+                $("#flutterWave_public_key").val(flutterWaveSettings.publicKey || '');
+                if (flutterWaveSettings.isEnable) {
+                    $("#flutterWave_box").removeClass('d-none');
                 }
-            });
+            }
 
-            MercadoPagoSettings.get().then(async function(MercadoPagoSettingsSnapshots) {
-                MercadoPagoSetting = MercadoPagoSettingsSnapshots.data();
-                if (MercadoPagoSetting.isEnabled) {
-                    var isEnable = MercadoPagoSetting.isEnabled;
-                    $("#mercadopago_isEnabled").val(isEnable);
-                    var isSandboxEnabled = MercadoPagoSetting.isSandboxEnabled;
-                    $("#mercadopago_isSandbox").val(isSandboxEnabled);
-                    var PublicKey = MercadoPagoSetting.PublicKey;
-                    $("#mercadopago_public_key").val(PublicKey);
-                    var AccessToken = MercadoPagoSetting.AccessToken;
-                    $("#mercadopago_access_token").val(AccessToken);
-                    var AccessToken = MercadoPagoSetting.AccessToken;
-                    if(isEnable){
-                        $("#mercadopago_box").removeClass('d-none');
-                    }
+            // MercadoPago settings from MySQL
+            if (MercadoPagoSettings && MercadoPagoSettings.isEnabled) {
+                $("#mercadopago_isEnabled").val(MercadoPagoSettings.isEnabled);
+                $("#mercadopago_isSandbox").val(MercadoPagoSettings.isSandboxEnabled || false);
+                $("#mercadopago_public_key").val(MercadoPagoSettings.PublicKey || '');
+                $("#mercadopago_access_token").val(MercadoPagoSettings.AccessToken || '');
+                if (MercadoPagoSettings.isEnabled) {
+                    $("#mercadopago_box").removeClass('d-none');
                 }
+            }
 
-            });
-
-            XenditSettings.get().then(async function(XenditSettingsSnapshots) {
-                XenditSetting = XenditSettingsSnapshots.data();
-                if (XenditSetting.enable) {
-                    var enable = XenditSetting.enable;
-                    $("#xendit_enable").val(enable);
-                    var apiKey = XenditSetting.apiKey;
-                    $("#xendit_apiKey").val(apiKey);
-                    var image = XenditSetting.image;
-                    $("#xendit_image").val(image);
-                    var isSandbox = XenditSetting.isSandbox;
-                    $("#xendit_isSandbox").val(isSandbox);
-                    if(enable){
-                        $("#xendit_box").removeClass('d-none');
-                    }
+            // Xendit settings from MySQL
+            if (XenditSettings && XenditSettings.enable) {
+                $("#xendit_enable").val(XenditSettings.enable);
+                $("#xendit_apiKey").val(XenditSettings.apiKey || '');
+                $("#xendit_image").val(XenditSettings.image || '');
+                $("#xendit_isSandbox").val(XenditSettings.isSandbox || false);
+                if (XenditSettings.enable) {
+                    $("#xendit_box").removeClass('d-none');
                 }
-            });
+            }
 
-            Midtrans_settings.get().then(async function(Midtrans_settingsSnapshots) {
-                Midtrans_setting = Midtrans_settingsSnapshots.data();
-                if (Midtrans_setting.enable) {
-                    var enable = Midtrans_setting.enable;
-                    $("#midtrans_enable").val(enable);
-                    var serverKey = Midtrans_setting.serverKey;
-                    $("#midtrans_serverKey").val(serverKey);
-                    var image = Midtrans_setting.image;
-                    $("#midtrans_image").val(image);
-                    var isSandbox = Midtrans_setting.isSandbox;
-                    $("#midtrans_isSandbox").val(isSandbox);
-                    if(enable){
-                        $("#midtrans_box").removeClass('d-none');
-                    }
+            // Midtrans settings from MySQL
+            if (Midtrans_settings && Midtrans_settings.enable) {
+                $("#midtrans_enable").val(Midtrans_settings.enable);
+                $("#midtrans_serverKey").val(Midtrans_settings.serverKey || '');
+                $("#midtrans_image").val(Midtrans_settings.image || '');
+                $("#midtrans_isSandbox").val(Midtrans_settings.isSandbox || false);
+                if (Midtrans_settings.enable) {
+                    $("#midtrans_box").removeClass('d-none');
                 }
-            });
+            }
 
-            OrangePaySettings.get().then(async function(OrangePaySettingsSnapshots) {
-                OrangePaySetting = OrangePaySettingsSnapshots.data();
-                if (OrangePaySetting.enable) {
-                    $("#orangepay_enable").val(OrangePaySetting.enable);
-                    $("#orangepay_auth").val(OrangePaySetting.auth);
-                    $("#orangepay_image").val(OrangePaySetting.image);
-                    $("#orangepay_isSandbox").val(OrangePaySetting.isSandbox);
-                    $("#orangepay_clientId").val(OrangePaySetting.clientId);
-                    $("#orangepay_clientSecret").val(OrangePaySetting.clientSecret);
-                    $("#orangepay_merchantKey").val(OrangePaySetting.merchantKey);
-                    $("#orangepay_notifyUrl").val(OrangePaySetting.notifyUrl);
-                    $("#orangepay_returnUrl").val(OrangePaySetting.returnUrl);
-                    $("#orangepay_cancelUrl").val(OrangePaySetting.cancelUrl);
-                    $("#orangepay_box").show();
-                    if(OrangePaySetting.enable){
-                        $("#orangepay_box").removeClass('d-none');
-                    }
+            // OrangePay settings from MySQL
+            if (OrangePaySettings && OrangePaySettings.enable) {
+                $("#orangepay_enable").val(OrangePaySettings.enable);
+                $("#orangepay_auth").val(OrangePaySettings.auth || '');
+                $("#orangepay_image").val(OrangePaySettings.image || '');
+                $("#orangepay_isSandbox").val(OrangePaySettings.isSandbox || false);
+                $("#orangepay_clientId").val(OrangePaySettings.clientId || '');
+                $("#orangepay_clientSecret").val(OrangePaySettings.clientSecret || '');
+                $("#orangepay_merchantKey").val(OrangePaySettings.merchantKey || '');
+                $("#orangepay_notifyUrl").val(OrangePaySettings.notifyUrl || '');
+                $("#orangepay_returnUrl").val(OrangePaySettings.returnUrl || '');
+                $("#orangepay_cancelUrl").val(OrangePaySettings.cancelUrl || '');
+                if (OrangePaySettings.enable) {
+                    $("#orangepay_box").removeClass('d-none');
                 }
-            });
+            }
 
-            userDetailsRef.get().then(async function(userSnapshots) {
-
-                var userDetails = userSnapshots.docs[0].data();
-                if (userDetails.wallet_amount != undefined && userDetails.wallet_amount != '' && !isNaN(
-                        userDetails.wallet_amount)) {
-                    wallet_amount = parseFloat(userDetails.wallet_amount);
-                    $("#wallet").attr('disabled', false);
-                    $("#user_wallet_amount").val(wallet_amount);
-                }
+            // Get user details from MySQL (wallet amount already passed from controller)
+            if (wallet_amount > 0) {
+                $("#wallet").attr('disabled', false);
+                $("#user_wallet_amount").val(wallet_amount);
                 var wallet_balance = 0;
                 if (currencyAtRight) {
-                    wallet_balance = parseFloat(wallet_amount).toFixed(decimal_degits) + "" +
-                        currentCurrency;
+                    wallet_balance = parseFloat(wallet_amount).toFixed(decimal_degits) + "" + currentCurrency;
                 } else {
-                    wallet_balance = currentCurrency + "" + parseFloat(wallet_amount).toFixed(
-                        decimal_degits);
+                    wallet_balance = currentCurrency + "" + parseFloat(wallet_amount).toFixed(decimal_degits);
                 }
                 $("#wallet_amount").html(wallet_balance);
-                authorName = userDetails.firstName + ' ' + userDetails.lastName;
-                authorEmail = userDetails.email;
-            });
+            }
+            
+            // Get author name and email from authenticated user
+            authorName = "{{ Auth::user()->firstName ?? '' }} {{ Auth::user()->lastName ?? '' }}";
+            authorEmail = "{{ Auth::user()->email }}";
         }
 
         async function finalCheckout() {
@@ -765,10 +660,8 @@
                 return false;
             }
 
-            var createdAt = firebase.firestore.FieldValue.serverTimestamp();
             var now = new Date();
             var order_json = {
-                id: id_order,
                 userId: userId,
                 planId: planId,
                 authorName: authorName,
@@ -1083,71 +976,76 @@
                     return false;
                 }
                 
-                database.collection('users').doc(userId).update({
-                    'subscription_plan': planData,
-                    'subscriptionPlanId': planId,
-                    'subscriptionExpiryDate': expiryDay
-                }).then(async function(result) {
-                    if(vendorId!=null){
-                        await database.collection('vendors').doc(vendorId).update({
-                           'subscription_plan': planData,
-                            'subscriptionPlanId': planId,
-                            'subscriptionExpiryDate': expiryDay,
-                            'subscriptionTotalOrders':planData.orderLimit
+                // Generate wallet transaction ID
+                var walletId = 'wallet_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                var paymentDate = new Date().toISOString();
+                var finalPlanData = planData ? planData : {};
+                
+                // Calculate expiry date if not already set
+                var expiryDate = expiryDay;
+                if(!expiryDate && planData && planData.expiryDay && planData.expiryDay != '-1') {
+                    var currentDate = new Date();
+                    currentDate.setDate(currentDate.getDate() + parseInt(planData.expiryDay));
+                    expiryDate = currentDate.toISOString();
+                }
+                
+                var finalizeData = {
+                    user_id: userId,
+                    plan_id: planId,
+                    plan_data: JSON.stringify(finalPlanData),
+                    expiry_date: expiryDate,
+                    transaction_id: walletId,
+                    payment_date: paymentDate,
+                    payment_method: payment_method,
+                    subscription_order_id: id_order,
+                    vendor_id: vendorId,
+                    wallet_amount: wallet_amount - total_pay,
+                    wallet_transaction_id: walletId,
+                    wallet_debit_amount: total_pay,
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                };
 
-                        })
-                    }
-                    await database.collection('subscription_history').doc(id_order).set({
-                        'id': id_order,
-                        'user_id': userId,
-                        'expire_date': expiryDay,
-                        'createdAt': createdAt,
-                        'subscription_plan': planData,
-                        'payment_type': payment_method
-                    }).then(async function(snapshot) {
-                        wallet_amount = wallet_amount - total_pay;
-                        database.collection('users').doc(userId).update({
-                            'wallet_amount': wallet_amount
-                        }).then(async function(result) {
-                            walletId = database.collection("tmp").doc().id;
-                            database.collection('wallet').doc(walletId).set({
-                                'amount': parseFloat(total_pay),
-                                'date': createdAt,
-                                'id': walletId,
-                                'isTopUp': false,
-                                'subscriptionId': id_order,
-                                'payment_method': "Wallet",
-                                'payment_status': 'success',
-                                'user_id': userId,
-                                'note': 'subscription amount debited'
-                            }).then(async function(result) {
-                                var url="{{ route('setSubcriptionFlag') }}";
-
-                                $.ajax({
-
-                                    type: 'POST',
-                                    url: url,
-                                    data: {
-                                        email: "<?php echo Auth::user()->email?>",
-                                        isSubscribed: 'true'
-                                    },
-
-                                    headers: {
-                                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                                    },
-
-                                    success: function(data) {
-                                        if(data.access) {
-                                            window.location.href='{{ route('dashboard') }}';
-                                        }
+                // ✅ CRITICAL: This uses MySQL to save subscription payment
+                // The Firebase code above is ONLY for display data, not payment storage
+                $.ajax({
+                    type: 'POST',
+                    url: '{{ route("finalize-subscription") }}', // MySQL endpoint
+                    data: finalizeData,
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if(response.success) {
+                            // Update subscription flag
+                            var url="{{ route('setSubcriptionFlag') }}";
+                            $.ajax({
+                                type: 'POST',
+                                url: url,
+                                data: {
+                                    email: "<?php echo Auth::user()->email?>",
+                                    isSubscribed: 'true'
+                                },
+                                headers: {
+                                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                                },
+                                success: function(data) {
+                                    if(data.access) {
+                                        window.location.href='{{ route('dashboard') }}';
                                     }
-
-
-                                });
-
+                                }
                             });
-                        });
-                    })
+                        } else {
+                            alert('Error: ' + (response.message || 'Failed to process wallet payment'));
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error('Wallet payment error:', xhr);
+                        var errorMsg = 'Error processing wallet payment. Please contact support.';
+                        if(xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMsg = xhr.responseJSON.message;
+                        }
+                        alert(errorMsg);
+                    }
                 });
 
             }

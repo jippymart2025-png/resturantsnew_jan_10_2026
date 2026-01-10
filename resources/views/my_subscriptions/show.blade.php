@@ -49,6 +49,10 @@
                                                 <label class="col-12 control-label"><strong>{{ trans('lang.payment_methods') }}
                                                         : </strong><span id="payment_method"></span></label>
                                             </div>
+                                            <div class="form-group row widt-100 gendetail-col">
+                                                <label class="col-12 control-label"><strong>{{ __('Zone') }}
+                                                        : </strong><span id="zone"></span></label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -96,137 +100,136 @@
 @section('scripts')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/printThis/1.15.0/printThis.js"></script>
     <script>
-        var id = "<?php echo $id; ?>";
-        var adminCommission_val = 0;
-        var database = firebase.firestore();
-        var ref = database.collection('subscription_history').where("id", "==", id);
-        var currentCurrency = '';
-        var currencyAtRight = false;
-        var refCurrency = database.collection('currencies').where('isActive', '==', true);
-        var decimal_degits = 0;
-        refCurrency.get().then(async function(snapshots) {
-            var currencyData = snapshots.docs[0].data();
-            currentCurrency = currencyData.symbol;
-            currencyAtRight = currencyData.symbolAtRight;
-            if (currencyData.decimal_degits) {
-                decimal_degits = currencyData.decimal_degits;
-            }
-        });
+        // Data from controller (MySQL) - NO Firebase
+        var planData = @json($planData ?? []);
+        var subscription = @json($subscription ?? []);
+        var currencyData = @json($currencyData ?? []);
+        var currentCurrency = "{{ $currencyData['symbol'] ?? '$' }}";
+        var currencyAtRight = {{ ($currencyData['symbolAtRight'] ?? false) ? 'true' : 'false' }};
+        var decimal_degits = {{ $currencyData['decimal_degits'] ?? 2 }};
+        
         $(document).ready(function() {
             $(document.body).on('click', '.redirecttopage', function() {
                 var url = $(this).attr('data-url');
                 window.location.href = url;
             });
-            jQuery("#data-table_processing").show();
-            ref.get().then(async function(snapshot) {
-                var data = snapshot.docs[0].data();
-                $('#plan_name').html(data.subscription_plan.name);
+            
+            // Display plan data
+            if (planData && planData.name) {
+                $('#plan_name').html(planData.name);
+            }
+            
+            // Format and display price
+            if (planData && planData.price !== undefined) {
+                var price;
                 if (currencyAtRight) {
-                    price = parseFloat(data.subscription_plan.price)
-                        .toFixed(decimal_degits) + "" + currentCurrency;
+                    price = parseFloat(planData.price).toFixed(decimal_degits) + currentCurrency;
                 } else {
-                    price = currentCurrency + "" + parseFloat(data
-                        .subscription_plan.price).toFixed(
-                        decimal_degits);
+                    price = currentCurrency + parseFloat(planData.price).toFixed(decimal_degits);
                 }
                 $('#plan_price').html(price);
-                $('#item_limit').html((data.subscription_plan.itemLimit!='-1') ? data.subscription_plan.itemLimit : "{{trans('lang.unlimited')}}");
-                $('#order_limit').html((data.subscription_plan.orderLimit!='-1') ? data.subscription_plan.orderLimit : "{{trans('lang.unlimited')}}");
-                var date = '';
-                var time = '';
-                if (data.hasOwnProperty("expiry_date") && data
-                    .expiry_date != '' && data.expiry_date != null ) {
-                    try {
-                        date = data.expiry_date.toDate()
-                            .toDateString();
-                        time = data.expiry_date.toDate()
-                            .toLocaleTimeString('en-US');
-                    } catch (err) {
-                    }
-                    $('#expire_at').html(date + ' ' + time);
-                }else{
-                    $('#expire_at').html("{{trans("lang.unlimited")}}");
-                }
-                
-                var date = '';
-                var time = '';
-                if (data.hasOwnProperty("createdAt") && data.createdAt != '' && data.createdAt !=
-                    null) {
-                    try {
-                        date = data.createdAt.toDate()
-                            .toDateString();
-                        time = data.createdAt.toDate()
-                            .toLocaleTimeString('en-US');
-                    } catch (err) {
-                    }
-                }
-                $('#active_at').html(date + ' ' + time);
-                if (data.payment_type.toString().toLowerCase() == "stripe") {
+            }
+            
+            // Display limits
+            if (planData) {
+                $('#item_limit').html((planData.itemLimit != '-1' && planData.itemLimit != -1) ? planData.itemLimit : "{{trans('lang.unlimited')}}");
+                $('#order_limit').html((planData.orderLimit != '-1' && planData.orderLimit != -1) ? planData.orderLimit : "{{trans('lang.unlimited')}}");
+            }
+            
+            // Display dates (already formatted in controller with timezone conversion)
+            @if(isset($formattedActiveAt) && !empty($formattedActiveAt))
+                $('#active_at').html("{{ $formattedActiveAt }}");
+            @endif
+            
+            @if(isset($formattedExpiryDate))
+                @if($formattedExpiryDate === trans('lang.unlimited'))
+                    $('#expire_at').html("{{trans('lang.unlimited')}}");
+                @else
+                    $('#expire_at').html("{{ $formattedExpiryDate }}");
+                @endif
+            @endif
+            
+            // Format payment method
+            var paymentType = subscription ? (subscription.payment_type || '').toLowerCase() : '';
+            var payment_method = '';
+            var image = '';
+            
+            if (paymentType == "stripe") {
                     image = '{{ asset('images/stripe.png') }}';
-                    payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-                } else if (data.payment_type.toString().toLowerCase() == "razorpay") {
+                payment_method = '<img style="width:100px" alt="image" src="' + image + '">';
+            } else if (paymentType == "razorpay") {
                     image = '{{ asset('images/razorpay.png') }}';
-                    payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-                } else if (data.payment_type.toString().toLowerCase() == "paypal") {
+                payment_method = '<img style="width:100px" alt="image" src="' + image + '">';
+            } else if (paymentType == "paypal") {
                     image = '{{ asset('images/paypal.png') }}';
-                    payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-                } else if (data.payment_type.toString().toLowerCase() == "payfast") {
+                payment_method = '<img style="width:100px" alt="image" src="' + image + '">';
+            } else if (paymentType == "payfast") {
                     image = '{{ asset('images/payfast.png') }}';
-                    payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-                } else if (data.payment_type.toString().toLowerCase() == "paystack") {
+                payment_method = '<img style="width:100px" alt="image" src="' + image + '">';
+            } else if (paymentType == "paystack") {
                     image = '{{ asset('images/paystack.png') }}';
-                    payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-                } else if (data.payment_type.toString().toLowerCase() == "flutterwave") {
+                payment_method = '<img style="width:100px" alt="image" src="' + image + '">';
+            } else if (paymentType == "flutterwave") {
                     image = '{{ asset('images/flutter_wave.png') }}';
-                    payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-                } else if (data.payment_type.toString().toLowerCase() == "mercadopago") {
+                payment_method = '<img style="width:100px" alt="image" src="' + image + '">';
+            } else if (paymentType == "mercadopago") {
                     image = '{{ asset('images/marcado_pago.png') }}';
-                    payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-                } else if (data.payment_type.toString().toLowerCase() == "wallet") {
+                payment_method = '<img style="width:100px" alt="image" src="' + image + '">';
+            } else if (paymentType == "wallet") {
                     image = '{{ asset('images/foodie_wallet.png') }}';
-                    payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-                } else if (data.payment_type.toString().toLowerCase() == "paytm") {
+                payment_method = '<img style="width:100px" alt="image" src="' + image + '">';
+            } else if (paymentType == "paytm") {
                     image = '{{ asset('images/paytm.png') }}';
-                    payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-                } else if (data.payment_type.toString().toLowerCase() == "xendit") {
+                payment_method = '<img style="width:100px" alt="image" src="' + image + '">';
+            } else if (paymentType == "xendit") {
                     image = '{{ asset('images/Xendit.png') }}';
-                    payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-                } else if (data.payment_type.toString().toLowerCase() == "orangepay") {
+                payment_method = '<img style="width:100px" alt="image" src="' + image + '">';
+            } else if (paymentType == "orangepay") {
                     image = '{{ asset('images/orangeMoney.png') }}';
-                    payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-                } else if (data.payment_type.toString().toLowerCase() == "midtrans") {
+                payment_method = '<img style="width:100px" alt="image" src="' + image + '">';
+            } else if (paymentType == "midtrans") {
                     image = '{{ asset('images/midtrans.png') }}';
-                    payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
+                payment_method = '<img style="width:100px" alt="image" src="' + image + '">';
                 } else {
-                    payment_method = data.payment_type;
+                payment_method = subscription ? subscription.payment_type : '';
                 }
                 $('#payment_method').html(payment_method);
+            
+            // Display features
                 var html = '';
-                if (data.subscription_plan.hasOwnProperty('features') && data.subscription_plan.features!=null ) {
+            if (planData && planData.features) {
                     const translations = {
                         chatingOption: "{{ trans('lang.chating_option') }}",
                         dineInOption: "{{ trans('lang.dinein_option') }}",
                         generateQrCode: "{{ trans('lang.generate_qr_code') }}",
                         mobileAppAccess: "{{ trans('lang.mobile_app_access') }}"
                     };
-                    var features = data.subscription_plan.features;
-                    html += `
-                                        ${features.chat? `<li>${translations.chatingOption}</li>`:''}
-                                        ${features.dineIn? `<li>${translations.dineInOption}</li>`:''}
-                                        ${features.qrCodeGenerate? `<li>${translations.generateQrCode}</li>`:''}
-                                        ${features.restaurantMobileApp? `<li>${translations.mobileAppAccess}</li>`:''}       
-                            `;
+                var features = planData.features;
+                if (features.chat) html += '<li>' + translations.chatingOption + '</li>';
+                if (features.dineIn) html += '<li>' + translations.dineInOption + '</li>';
+                if (features.qrCodeGenerate) html += '<li>' + translations.generateQrCode + '</li>';
+                if (features.restaurantMobileApp) html += '<li>' + translations.mobileAppAccess + '</li>';
                 } 
-                if (data.subscription_plan.hasOwnProperty('plan_points') && data.subscription_plan.plan_points!=null ) {
-                    
-                    data.subscription_plan.plan_points.map(async (list) => {
-                        html += `<li>${list}</li>`
+            
+            if (planData && planData.plan_points && Array.isArray(planData.plan_points)) {
+                planData.plan_points.forEach(function(list) {
+                    html += '<li>' + list + '</li>';
                     });
                 }
+            
                 $('.features').html(html);
-                $('#description').html(data.subscription_plan.description);
-            });
-            jQuery("#data-table_processing").hide();
+            
+            // Display description
+            if (planData && planData.description) {
+                $('#description').html(planData.description);
+            }
+            
+            // Display zone (from controller)
+            @if(isset($zoneDisplay) && !empty($zoneDisplay))
+                $('#zone').html("{{ $zoneDisplay }}");
+            @else
+                $('#zone').html('-');
+            @endif
         });
     </script>
 @endsection

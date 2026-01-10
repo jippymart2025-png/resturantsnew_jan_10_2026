@@ -64,142 +64,81 @@
 
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
         <script src="{{ asset('assets/plugins/select2/dist/js/select2.min.js') }}"></script>
+        {{-- Keep Firebase Storage only for images --}}
         <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-app.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-firestore.js"></script>
         <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-storage.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-auth.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-database.js"></script>
         <script src="{{ asset('js/crypto-js.js') }}"></script>
         <script src="{{ asset('js/jquery.cookie.js') }}"></script>
         <script src="{{ asset('js/jquery.validate.js') }}"></script>
 
         <script type="text/javascript">
-            var database=firebase.firestore();
-            var currentCurrency='';
-            var currencyAtRight=false;
-            var decimal_degits=0;
-            var userId="{{ $userId }}";
+            // Data from controller (MySQL) - NO Firebase Firestore
+            var currentCurrency = "{{ $currencyData['symbol'] }}";
+            var currencyAtRight = {{ $currencyData['symbolAtRight'] ? 'true' : 'false' }};
+            var decimal_degits = {{ $currencyData['decimal_degits'] }};
+            var userId = "{{ $userId }}";
+            var commisionModel = {{ $commisionModel ? 'true' : 'false' }};
+            var AdminCommission = "{{ $adminCommission }}";
+            var commissionType = "{{ $commissionType }}";
+            var subscriptionModel = {{ $subscriptionModel ? 'true' : 'false' }};
+            var activeSubscriptionId = "{{ $activeSubscriptionId ?? '' }}";
+            var vendorId = "{{ $vendorId ?? '' }}";
+            var subscriptionPlans = @json($subscriptionPlans);
+            var globalSettings = @json($globalSettings);
 
-            var createdAt=firebase.firestore.FieldValue.serverTimestamp();
-            var vendorId=null;
-            var refCurrency=database.collection('currencies').where('isActive','==',true);
-            refCurrency.get().then(async function(snapshots) {
-                var currencyData=snapshots.docs[0].data();
-                currentCurrency=currencyData.symbol;
-                currencyAtRight=currencyData.symbolAtRight;
-
-                if(currencyData.decimal_degits) {
-                    decimal_degits=currencyData.decimal_degits;
+            // Format admin commission
+            if (commisionModel && commissionType == "Percent") {
+                AdminCommission = AdminCommission + '%';
+            } else if (commisionModel) {
+                if (currencyAtRight) {
+                    AdminCommission = parseFloat(AdminCommission).toFixed(decimal_degits) + currentCurrency;
+                } else {
+                    AdminCommission = currentCurrency + parseFloat(AdminCommission).toFixed(decimal_degits);
                 }
-            });
-            var commisionModel=false;
-            var AdminCommission='';
-            var commissionBusinessModel=database.collection('settings').doc("AdminCommission");
-            var subscriptionModel=false;
-            var subscriptionBusinessModel=database.collection('settings').doc("restaurant");
+            }
 
-            var activeSubscriptionId='';
-            var subscriptionHistory=database.collection('subscription_history').where('user_id','==',userId).orderBy(
-                'createdAt','desc');
-            subscriptionHistory.get().then(async function(snapshot) {
-                if(snapshot.docs.length>0) {
-                    var data=snapshot.docs[0].data();
-                    activeSubscriptionId=data.subscription_plan.id;
-                }
-            });
-            database.collection('users').where('id','==',userId).get().then(async function(snapshot) {
-                var userData=snapshot.docs[0].data();
-                if(userData.hasOwnProperty('vendorID')&&userData.vendorID!=''&&userData.vendorID!=null) {
-                    vendorId=userData.vendorID;
-                }
-            });
-            var ref=database.collection('settings').doc("globalSettings");
-
-            $(document).ready(async function() {
-
+            $(document).ready(function() {
                 jQuery('#data-table_processing').show();
-                await commissionBusinessModel.get().then(async function(snapshots) {
-                    var commissionSetting=snapshots.data();
-                    if(commissionSetting.isEnabled==true) {
-                        commisionModel=true;
-                    }
 
-                    if(commissionSetting.commissionType=="Percent") {
-                        AdminCommission=commissionSetting.fix_commission+''+'%';
-                    } else {
-                        if(currencyAtRight) {
-                            AdminCommission=commissionSetting.fix_commission.toFixed(decimal_degits)+
-                                currentCurrency;
-                        } else {
-                            AdminCommission=currentCurrency+commissionSetting.fix_commission.toFixed(
-                                decimal_degits);
-                        }
-                    }
-                });
-                await subscriptionBusinessModel.get().then(async function(snapshots) {
-                    var businessModelSettings=snapshots.data();
-                    if(businessModelSettings.hasOwnProperty('subscription_model')&&
-                        businessModelSettings.subscription_model==true) {
-                        subscriptionModel=true;
-                    }
-                });
+                // Set global settings cookies from MySQL data
+                if (globalSettings && globalSettings.store_panel_color) {
+                    setCookie('store_panel_color', globalSettings.store_panel_color, 365);
+                }
+                if (globalSettings && globalSettings.meta_title) {
+                    setCookie('meta_title', globalSettings.meta_title, 365);
+                    document.title = globalSettings.meta_title;
+                }
+                if (globalSettings && globalSettings.favicon) {
+                    setCookie('favicon', globalSettings.favicon, 365);
+                }
 
-
-                if(commisionModel==false&&subscriptionModel==false) {
-                    var isSubscribed="";
-
-
-                    var url="{{ route('setSubcriptionFlag') }}";
+                // Check if both models are disabled
+                if (commisionModel == false && subscriptionModel == false) {
+                    var url = "{{ route('setSubcriptionFlag') }}";
                     $.ajax({
-
                         type: 'POST',
-
                         url: url,
-
                         data: {
-
-                            email: "{{Auth::user()->email}}",
-                            isSubscribed: isSubscribed
+                            email: "{{ Auth::user()->email }}",
+                            isSubscribed: ""
                         },
                         headers: {
                             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                         },
-
                         success: function(data) {
-                            if(data.access) {
-                                window.location="{{ route('home') }}";
+                            if (data.access) {
+                                window.location = "{{ route('home') }}";
                             }
                         }
-
-                    })
+                    });
+                    return;
                 }
 
+                // Render subscription plans from MySQL data
+                var plans = subscriptionPlans;
 
-                ref.get().then(async function(snapshots) {
-                    var globalSettings=snapshots.data();
-                    store_panel_color=globalSettings.store_panel_color;
-                    setCookie('meta_title',globalSettings.meta_title,365);
-                    document.title=globalSettings.meta_title;
-                    setCookie('store_panel_color',store_panel_color,365);
-                    setCookie('favicon',globalSettings.favicon,365);
-                })
-
-                database.collection('subscription_plans').where('isEnable','==',true).get().then(async function(
-                    snapshots) {
-
-                    let plans=[];
-                    snapshots.docs.map(doc => {
-                        let data=doc.data();
-                        plans.push({
-                            ...data
-                        }); // Include document ID if needed
-                    });
-
-                    plans.sort((a,b) => a.place-b.place);
-
-                    var html='';
-                    var activeClass='';
-                    plans.map(async (data) => {
+                var html = '';
+                plans.forEach(function(data) {
 
                         var activeClass=(data.id==activeSubscriptionId)?
                             '<span class="badge badge-success">{{ trans('lang.active') }}</span>':
@@ -225,10 +164,11 @@
                                                     <ul class="pricing-card-list text-dark-2">`;
                                 html+=
                                     `<li><span class="mdi mdi-check"></span>{{ trans('lang.pay_commission_of') }} ${AdminCommission} {{ trans('lang.on_each_order') }} </li>`
-                                data.plan_points.map(async (list) => {
-                                    html+=
-                                        `<li><span class="mdi mdi-check"></span>${list}</li>`
+                                if (data.plan_points && Array.isArray(data.plan_points)) {
+                                    data.plan_points.forEach(function(list) {
+                                        html += `<li><span class="mdi mdi-check"></span>${list}</li>`;
                                 });
+                                }
                                 html+=
                                     `<li><span class="mdi mdi-check"></span>{{ trans('lang.unlimited') }} {{ trans('lang.orders') }}</li>`
                                 html+=
@@ -305,10 +245,15 @@
                             }
                         }
                     });
-                    (activeSubscriptionId=='')? $('.backBtn').addClass('d-none'):$('.backBtn').removeClass('d-none')
+
+                if (activeSubscriptionId == '') {
+                    $('.backBtn').addClass('d-none');
+                } else {
+                    $('.backBtn').removeClass('d-none');
+                }
+                
                     $('#default-plan').append(html);
                     jQuery('#data-table_processing').hide();
-                });
             });
 
             function setCookie(cname,cvalue,exdays) {
@@ -318,69 +263,74 @@
                 document.cookie=cname+"="+cvalue+";"+expires+";path=/";
             }
 
-            var id_order=database.collection('tmp').doc().id;
-
             async function saveSubscriptionPlan(id) {
-                await database.collection('subscription_plans').where('id','==',id).get().then(async function(snapshot) {
-                    planData=snapshot.docs[0].data();
-                    var currentDate=new Date();
-                    if(planData.expiryDay!='-1') {
-                        currentDate.setDate(currentDate.getDate()+parseInt(planData.expiryDay));
-                        expiryDay=firebase.firestore.Timestamp.fromDate(currentDate);
-                    } else {
-                        expiryDay=null;
+                // Find plan data from MySQL data passed from controller
+                var planData = subscriptionPlans.find(function(p) {
+                    return p.id == id;
+                });
+
+                if (!planData) {
+                    alert('Plan not found');
+                    return;
+                }
+
+                // Calculate expiry date
+                var expiryDate = null;
+                if (planData.expiryDay != '-1') {
+                    var currentDate = new Date();
+                    currentDate.setDate(currentDate.getDate() + parseInt(planData.expiryDay));
+                    expiryDate = currentDate.toISOString();
                     }
-                        await database.collection('users').doc(userId).update({
-                        'subscription_plan': planData,
-                        'subscriptionPlanId': id,
-                        'subscriptionExpiryDate': expiryDay,
 
-                    }).then(async function(result) {
-                        if(vendorId!=null) {
-                            await database.collection('vendors').doc(vendorId).update({
-                                'subscription_plan': planData,
-                                'subscriptionPlanId': id,
-                                'subscriptionExpiryDate': expiryDay,
-                                'subscriptionTotalOrders':planData.orderLimit
+                // Generate subscription order ID
+                var subscriptionOrderId = 'sub_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
-                            })
-                        }
-                        await database.collection('subscription_history').doc(id_order).set({
-                            'id': id_order,
-                            'user_id': userId,
-                            'expiry_date': expiryDay,
-                            'createdAt': createdAt,
-                            'subscription_plan': planData,
-                            'payment_type': 'free'
-                        }).then(async function(snapshot) {
-                            var url="{{ route('setSubcriptionFlag') }}";
-
+                // Save to MySQL via AJAX using finalizeSubscription
+                var url = "{{ route('finalize-subscription') }}";
                             $.ajax({
-
                                 type: 'POST',
                                 url: url,
                                 data: {
-                                    email: "<?php echo Auth::user()->email; ?>",
+                        user_id: userId,
+                        plan_id: id,
+                        plan_data: JSON.stringify(planData),
+                        expiry_date: expiryDate,
+                        payment_method: 'free',
+                        subscription_order_id: subscriptionOrderId,
+                        vendor_id: vendorId || null
+                    },
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            // Update subscription flag
+                            var flagUrl = "{{ route('setSubcriptionFlag') }}";
+                            $.ajax({
+                                type: 'POST',
+                                url: flagUrl,
+                                data: {
+                                    email: "{{ Auth::user()->email }}",
                                     isSubscribed: 'true'
                                 },
-
                                 headers: {
-                                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]')
-                                        .attr('content')
+                                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                                 },
-
                                 success: function(data) {
-                                    if(data.access) {
-                                        window.location.href=
-                                            '{{ route('dashboard') }}';
+                                    if (data.access) {
+                                        window.location.href = "{{ route('home') }}";
                                     }
                                 }
                             });
-
-                        });
-                    });
-                })
-
+                        } else {
+                            alert('Failed to save subscription: ' + (response.message || 'Unknown error'));
+                        }
+                    },
+                    error: function(xhr) {
+                        alert('Error saving subscription. Please try again.');
+                        console.error('Error:', xhr);
+                    }
+                });
             }
 
         </script>

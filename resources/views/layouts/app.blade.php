@@ -128,6 +128,114 @@
                 </aside>
             </div>
 
+            <!-- Plan Expiry Alert Popup -->
+            @if(!empty($layoutPlanExpiryAlert))
+                @php
+                    $daysLeft = $layoutPlanExpiryAlert['days_left'];
+                    $planType = $layoutPlanExpiryAlert['plan_type'];
+                    $expiryDate = $layoutPlanExpiryAlert['expiry_date'];
+                    // Use sanitized key for localStorage (avoid special characters)
+                    $expiryDateKey = $layoutPlanExpiryAlert['expiry_date_key'] ?? str_replace([' ', ','], ['-', ''], $expiryDate);
+                    // Create a safe localStorage key
+                    $localStorageKey = 'plan_expiry_alert_dismissed_' . $daysLeft . '_' . $expiryDateKey;
+                @endphp
+                <div id="plan-expiry-alert-popup" style="display: none; position: fixed; top: 70px; right: 20px; z-index: 9999; max-width: 380px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                    <div class="alert alert-warning alert-dismissible fade show mb-0" role="alert" style="border-radius: 8px; padding: 15px; margin: 0;">
+                        <div class="d-flex align-items-start">
+                            <div class="mr-3">
+                                <i class="fa fa-clock-o text-warning" style="font-size: 24px;"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="alert-heading mb-2" style="font-size: 14px; font-weight: 600;">
+                                    ⏰ Plan Expiry Alert
+                                </h6>
+                                <p class="mb-2" style="font-size: 13px; line-height: 1.4;">
+                                    Your <strong>{{ $planType }}</strong> plan will expire in <strong>{{ $daysLeft }} {{ $daysLeft == 1 ? 'day' : 'days' }}</strong>.
+                                </p>
+                                <p class="mb-2" style="font-size: 12px; color: #666;">
+                                    Expires on: <strong>{{ $expiryDate }}</strong>
+                                </p>
+                                <div class="d-flex gap-2 mt-3">
+                                    <a href="{{ route('restaurant') }}" class="btn btn-sm btn-warning" style="font-size: 12px; padding: 5px 12px;">
+                                        <i class="fa fa-refresh mr-1"></i> Renew Now
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="dismissPlanExpiryAlert()" style="font-size: 12px; padding: 5px 12px;">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                            <button type="button" class="close ml-2" onclick="dismissPlanExpiryAlert()" aria-label="Close" style="position: absolute; top: 10px; right: 10px; padding: 0; margin: 0;">
+                                <span aria-hidden="true" style="font-size: 18px;">&times;</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <script>
+                    (function() {
+                        // Use a safe localStorage key (avoid special characters)
+                        var localStorageKey = '{{ $localStorageKey }}';
+                        var popupId = 'plan-expiry-alert-popup';
+                        
+                        function dismissPlanExpiryAlert() {
+                            var popup = document.getElementById(popupId);
+                            if (popup) {
+                                popup.style.display = 'none';
+                                try {
+                                    // Store dismissal in localStorage
+                                    localStorage.setItem(localStorageKey, 'true');
+                                    console.log('Plan expiry alert dismissed. Key:', localStorageKey);
+                                } catch (e) {
+                                    console.warn('Failed to save dismissal to localStorage:', e);
+                                }
+                            }
+                        }
+                        
+                        // Make function globally available
+                        window.dismissPlanExpiryAlert = dismissPlanExpiryAlert;
+                        
+                        // Check if alert was dismissed and show it
+                        function checkAndShowAlert() {
+                            var popup = document.getElementById(popupId);
+                            if (!popup) {
+                                console.warn('Plan expiry alert popup element not found');
+                                return;
+                            }
+                            
+                            try {
+                                var dismissed = localStorage.getItem(localStorageKey);
+                                if (dismissed === 'true') {
+                                    popup.style.display = 'none';
+                                    console.log('Plan expiry alert was previously dismissed');
+                                } else {
+                                    // Show popup
+                                    popup.style.display = 'block';
+                                    console.log('Plan expiry alert displayed. Days left: {{ $daysLeft }}, Expiry: {{ $expiryDate }}');
+                                }
+                            } catch (e) {
+                                // If localStorage fails, show the alert anyway
+                                console.warn('localStorage access failed, showing alert:', e);
+                                popup.style.display = 'block';
+                            }
+                        }
+                        
+                        // Try to show alert immediately if DOM is ready
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', function() {
+                                setTimeout(checkAndShowAlert, 300);
+                            });
+                        } else {
+                            // DOM already loaded
+                            setTimeout(checkAndShowAlert, 300);
+                        }
+                        
+                        // Fallback: try again after page fully loads
+                        window.addEventListener('load', function() {
+                            setTimeout(checkAndShowAlert, 100);
+                        });
+                    })();
+                </script>
+            @endif
+
             <main class="py-4">
                 @yield('content')
             </main>

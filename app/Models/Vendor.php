@@ -51,6 +51,9 @@ class Vendor extends Model
         'subscription_plan',
         'subscriptionExpiryDate',
         'subscriptionTotalOrders',
+        'subscriptionTransactionId',
+        'subscriptionPaymentDate',
+        'bill_status',
         'walletAmount',
         'isSelfDelivery',
         'hidephotos',
@@ -58,6 +61,7 @@ class Vendor extends Model
         'dine_in_active',
         'vType',
         'createdAt',
+        'gst',
     ];
 
     protected $casts = [

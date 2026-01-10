@@ -92,6 +92,7 @@ Route::post('razorpaypayment', [App\Http\Controllers\SubscriptionController::cla
 Route::post('process-mercadopago', [App\Http\Controllers\SubscriptionController::class, 'processMercadoPagoPayment'])->name('process-mercadopago')->middleware('throttle:10,1');
 
 Route::get('success', [App\Http\Controllers\SubscriptionController::class, 'success'])->name('success');
+Route::post('finalize-subscription', [App\Http\Controllers\SubscriptionController::class, 'finalizeSubscription'])->name('finalize-subscription')->middleware('auth');
 
 Route::get('failed', [App\Http\Controllers\SubscriptionController::class, 'failed'])->name('failed');
 
@@ -221,10 +222,10 @@ Route::post('store-firebase-service', [App\Http\Controllers\HomeController::clas
 Route::middleware(['check.subscription'])->group(function () {
 
     Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+    Route::get('/dashboard', [App\Http\Controllers\HomeController::class, 'index'])->name('dashboard');
 
     Route::get('my-subscription/show/{id}', [App\Http\Controllers\MySubscriptionsController::class, 'show'])->name('my-subscription.show');
-
-//    Route::get('/dashboard', [App\Http\Controllers\HomeController::class, 'index'])->name('dashboard');
+    Route::get('my-subscriptions/data', [App\Http\Controllers\MySubscriptionsController::class, 'getSubscriptionHistory'])->name('my-subscriptions.data');
 
     Route::get('my-subscriptions', [App\Http\Controllers\MySubscriptionsController::class, 'index'])->name('my-subscriptions');
 
@@ -234,16 +235,21 @@ Route::middleware(['check.subscription'])->group(function () {
 
     Route::get('/restaurant', [RestaurantProfileController::class, 'show'])->name('restaurant');
     Route::post('/restaurant', [RestaurantProfileController::class, 'update'])->name('restaurant.update');
+    Route::get('/restaurant/subscription-plans', [RestaurantProfileController::class, 'getSubscriptionPlansByZone'])->name('restaurant.subscription-plans');
+    Route::post('/restaurant/subscription/create-order', [RestaurantProfileController::class, 'createRazorpayOrder'])->name('restaurant.subscription.create-order');
+    Route::post('/restaurant/subscription/payment', [RestaurantProfileController::class, 'processSubscriptionPayment'])->name('restaurant.subscription.payment');
 
     Route::post('/foods/{id}/publish', [App\Http\Controllers\FoodController::class, 'togglePublish'])->name('foods.publish');
     Route::patch('/foods/{id}/availability', [App\Http\Controllers\FoodController::class, 'toggleAvailability'])->name('foods.availability');
     Route::get('/foods', [App\Http\Controllers\FoodController::class, 'index'])->name('foods');
     Route::get('/foods/create', [App\Http\Controllers\FoodController::class, 'create'])->name('foods.create');
     Route::post('/foods', [App\Http\Controllers\FoodController::class, 'store'])->name('foods.store');
+    Route::get('/foods/master-products', [App\Http\Controllers\FoodController::class, 'getMasterProductsByCategory'])->name('foods.master-products');
     Route::get('/foods/edit/{id}', [App\Http\Controllers\FoodController::class, 'edit'])->name('foods.edit');
     Route::put('/foods/{id}', [App\Http\Controllers\FoodController::class, 'update'])->name('foods.update');
     Route::delete('/foods/{id}', [App\Http\Controllers\FoodController::class, 'destroy'])->name('foods.destroy');
     Route::delete('/foods/', [App\Http\Controllers\FoodController::class, 'bulkDestroy'])->name('foods.bulkDestroy');
+    Route::post('/foods/recalculate-prices', [App\Http\Controllers\FoodController::class, 'recalculatePrices'])->name('foods.recalculatePrices');
 
 
     Route::get('/orders', [App\Http\Controllers\OrderController::class, 'index'])->name('orders');

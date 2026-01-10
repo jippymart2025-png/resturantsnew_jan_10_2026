@@ -33,7 +33,7 @@
 <div class="form-group row width-50">
     <label class="col-3 control-label">{{ trans('lang.coupon_discount_type') }}</label>
     <div class="col-7">
-        <select name="discount_type" class="form-control" required>
+        <select name="discount_type" id="discount_type" class="form-control" required>
             @foreach (['Percentage' => trans('lang.coupon_percent'), 'Fix Price' => trans('lang.coupon_fixed')] as $value => $label)
                 <option value="{{ $value }}" {{ old('discount_type', $coupon->discountType ?? '') === $value ? 'selected' : '' }}>
                     {{ $label }}
@@ -47,8 +47,9 @@
 <div class="form-group row width-50">
     <label class="col-3 control-label">{{ trans('lang.coupon_discount') }}</label>
     <div class="col-7">
-        <input type="number" step="0.01" name="discount" class="form-control" value="{{ old('discount', $coupon->discount ?? '') }}" required>
+        <input type="number" step="0.01" name="discount" id="discount" class="form-control" value="{{ old('discount', $coupon->discount ?? '') }}" required>
         <div class="form-text text-muted">{{ trans('lang.coupon_discount_help') }}</div>
+        <small class="text-danger" id="discount-error" style="display: none;"></small>
     </div>
 </div>
 
@@ -77,7 +78,7 @@
 <div class="form-group row width-50">
     <label class="col-3 control-label">{{ __('Minimum Order Amount') }}</label>
     <div class="col-7">
-        <input type="number" name="minimum_order" class="form-control" value="{{ old('minimum_order', $coupon->item_value ?? '') }}">
+        <input type="number" name="minimum_order" id="minimum_order" class="form-control" value="{{ old('minimum_order', $coupon->item_value ?? '') }}">
         <div class="form-text text-muted">{{ __('Set a minimum order amount (optional)') }}</div>
     </div>
 </div>
@@ -127,3 +128,88 @@
     </div>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const discountInput = document.getElementById('discount');
+    const discountTypeSelect = document.getElementById('discount_type');
+    const minimumOrderInput = document.getElementById('minimum_order');
+    const discountErrorElement = document.getElementById('discount-error');
+    const couponForm = document.querySelector('form[method="POST"]');
+
+    function validateDiscount() {
+        if (!discountInput || !discountTypeSelect) return true;
+
+        const discount = parseFloat(discountInput.value) || 0;
+        const discountType = discountTypeSelect.value;
+        const minimumOrder = minimumOrderInput ? (parseFloat(minimumOrderInput.value) || null) : null;
+
+        // Clear previous error
+        if (discountErrorElement) {
+            discountErrorElement.style.display = 'none';
+            discountErrorElement.textContent = '';
+        }
+        if (discountInput) {
+            discountInput.style.borderColor = '';
+        }
+
+        // Validate Fix Price discount
+        if (discountType === 'Fix Price') {
+            if (minimumOrder !== null && discount > minimumOrder) {
+                if (discountErrorElement) {
+                    discountErrorElement.textContent = 'Discount amount cannot be greater than minimum order amount.';
+                    discountErrorElement.style.display = 'block';
+                }
+                if (discountInput) {
+                    discountInput.style.borderColor = '#dc3545';
+                }
+                return false;
+            }
+        }
+
+        // Validate Percentage discount
+        if (discountType === 'Percentage') {
+            if (discount > 100) {
+                if (discountErrorElement) {
+                    discountErrorElement.textContent = 'Percentage discount cannot exceed 100%.';
+                    discountErrorElement.style.display = 'block';
+                }
+                if (discountInput) {
+                    discountInput.style.borderColor = '#dc3545';
+                }
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // Validate when discount changes
+    if (discountInput) {
+        discountInput.addEventListener('input', validateDiscount);
+        discountInput.addEventListener('blur', validateDiscount);
+    }
+
+    // Validate when discount type changes
+    if (discountTypeSelect) {
+        discountTypeSelect.addEventListener('change', validateDiscount);
+    }
+
+    // Validate when minimum order changes
+    if (minimumOrderInput) {
+        minimumOrderInput.addEventListener('input', validateDiscount);
+        minimumOrderInput.addEventListener('blur', validateDiscount);
+    }
+
+    // Validate before form submission
+    if (couponForm) {
+        couponForm.addEventListener('submit', function(e) {
+            if (!validateDiscount()) {
+                e.preventDefault();
+                const errorMsg = discountErrorElement ? discountErrorElement.textContent : 'Please fix the discount validation error.';
+                alert(errorMsg);
+                return false;
+            }
+        });
+    }
+});
+</script>

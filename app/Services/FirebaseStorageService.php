@@ -14,6 +14,25 @@ class FirebaseStorageService
 
     public function __construct()
     {
+        // Lazy initialization - don't initialize Firebase in constructor
+        // Only initialize when actually needed (when uploadFile/deleteFile is called)
+        // This prevents errors when Firebase credentials are missing but no image upload is happening
+    }
+    
+    /**
+     * Initialize Firebase Storage (lazy loading)
+     * Only called when actually needed
+     * 
+     * @return void
+     * @throws \Exception
+     */
+    protected function initialize(): void
+    {
+        // If already initialized, return
+        if ($this->storage !== null) {
+            return;
+        }
+        
         try {
             $factory = null;
             $credentialsPath = storage_path('app/firebase/credentials.json');
@@ -38,12 +57,11 @@ class FirebaseStorageService
                 
                 // Check if required environment variables are set
                 if (empty($projectId) || empty($privateKey) || empty($clientEmail)) {
-                    throw new \Exception(
-                        'Firebase credentials not found. ' .
-                        'Please either: ' .
-                        '1) Place credentials.json at storage/app/firebase/credentials.json, or ' .
-                        '2) Set FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, and FIREBASE_CLIENT_EMAIL in .env file'
-                    );
+                    // Don't throw exception here - just log and set storage to null
+                    // Exception will be thrown only when uploadFile is actually called
+                    Log::warning('Firebase credentials not found. Firebase Storage will not be available until credentials are configured.');
+                    $this->storage = null;
+                    return;
                 }
                 
                 $factory = (new Factory)
@@ -80,7 +98,9 @@ class FirebaseStorageService
                     // Try new format first (.firebasestorage.app), fallback to old format (.appspot.com)
                     $this->bucket = $projectId . '.firebasestorage.app';
                 } else {
-                    throw new \Exception('Firebase project_id is required to determine storage bucket');
+                    Log::warning('Firebase project_id is required to determine storage bucket');
+                    $this->storage = null;
+                    return;
                 }
             }
             
@@ -89,6 +109,7 @@ class FirebaseStorageService
                 'project_id' => $projectId ?? config('firebase.project_id')
             ]);
         } catch (\Exception $e) {
+            $credentialsPath = storage_path('app/firebase/credentials.json');
             $errorDetails = [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -99,7 +120,8 @@ class FirebaseStorageService
             ];
             
             Log::error('Firebase Storage initialization failed', $errorDetails);
-            // Don't set storage to null here, let it fail gracefully
+            // Set storage to null so we can check later
+            $this->storage = null;
         }
     }
 
@@ -113,6 +135,14 @@ class FirebaseStorageService
      */
     public function uploadFile(UploadedFile $file, string $path): string
     {
+        // Validate file first
+        if (!$file || !$file->isValid()) {
+            throw new \Exception('Invalid file provided for upload');
+        }
+        
+        // Initialize Firebase Storage if not already initialized (lazy loading)
+        $this->initialize();
+        
         if (!$this->storage) {
             $credentialsPath = storage_path('app/firebase/credentials.json');
             $hasCredentialsFile = file_exists($credentialsPath);
@@ -120,7 +150,7 @@ class FirebaseStorageService
             $hasPrivateKey = !empty(config('firebase.private_key'));
             $hasClientEmail = !empty(config('firebase.client_email'));
             
-            $message = 'Firebase Storage is not initialized. ';
+            $message = 'Firebase Storage is not initialized. Missing Firebase credentials. ';
             $suggestions = [];
             
             if (!$hasCredentialsFile && (!$hasProjectId || !$hasPrivateKey || !$hasClientEmail)) {
@@ -211,7 +241,13 @@ class FirebaseStorageService
      */
     public function deleteFile(string $url): bool
     {
+        // Initialize Firebase Storage if not already initialized (lazy loading)
+        $this->initialize();
+        
         if (!$this->storage) {
+            // If Firebase is not available, just return false (don't throw exception)
+            // This allows the code to continue even if Firebase is not configured
+            Log::warning('Cannot delete file from Firebase Storage - Firebase not initialized', ['url' => $url]);
             return false;
         }
 

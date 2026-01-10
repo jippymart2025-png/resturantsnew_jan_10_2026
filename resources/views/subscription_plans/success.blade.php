@@ -134,7 +134,7 @@
     } ?>
                                                                                         {{ trans('lang.subscription_plan_activated_successfully') }}
                                                                                     </h1>
-                                                                                    <a href="{{ url('/dashboard') }}"
+                                                                                    <a href="{{ route('home') }}"
                                                                                         class="btn rounded btn-primary btn-lg btn-block">{{ trans('lang.go_to_home') }}</a>
                                                                                 </div>
                                                                             </div>
@@ -153,106 +153,103 @@
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
         <script src="{{ asset('assets/plugins/select2/dist/js/select2.min.js') }}"></script>
         <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-app.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-firestore.js"></script>
         <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-storage.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-auth.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/7.2.0/firebase-database.js"></script>
         <script src="{{ asset('js/crypto-js.js') }}"></script>
         <script src="{{ asset('js/jquery.cookie.js') }}"></script>
         <script src="{{ asset('js/jquery.validate.js') }}"></script>
         <script type="text/javascript">
-            var database=firebase.firestore();
-            var id_order=database.collection('tmp').doc().id;
             var userId="<?php    echo $id; ?>";
-            var userDetailsRef=database.collection('users').where('id',"==",userId);
-
+            var subscriptionOrderId = 'sub_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            var vendorId = <?php echo isset($vendorId) && $vendorId ? "'".$vendorId."'" : 'null'; ?>;
+            var planId = <?php echo isset($planId) && $planId ? "'".$planId."'" : 'null'; ?>;
+            var planData = <?php echo isset($subscriptionPlan) ? json_encode($subscriptionPlan) : 'null'; ?>;
+            var payment_method='<?php        echo $payment_method; ?>';
+            var transactionId = '<?php echo isset($cart['transaction_id']) ? $cart['transaction_id'] : ''; ?>';
+            var paymentDate = '<?php echo isset($cart['payment_date']) ? $cart['payment_date'] : date('Y-m-d H:i:s'); ?>';
 
             <?php    if (@$cart['payment_status'] == true && ! empty(@$cart['cart_order']['order_json'])) { ?>
             $("#data-table_processing").show();
             var order_json='<?php        echo json_encode($cart['cart_order']['order_json']); ?>';
             order_json=JSON.parse(order_json);
-            var planId=order_json.planId;
-            var planData='';
-            var expiryDay='';
-            var vendorId=null;
-            $(document).ready(async function() {
-                await database.collection('users').where('id','==',userId).get().then(async function(snapshot) {
-                    var userData=snapshot.docs[0].data();
-                    if(userData.hasOwnProperty('vendorID')&&userData.vendorID!=''&&userData.vendorID!=null) {
-                        vendorId=userData.vendorID;
-                    }
-                });
-                var planRef=database.collection('subscription_plans').where('id','==',planId);
-                await planRef.get().then(async function(snapshot) {
-                    planData=snapshot.docs[0].data();
-                    if(planData.expiryDay!='-1') {
-                    var currentDate=new Date();
-                    currentDate.setDate(currentDate.getDate()+parseInt(planData.expiryDay));
-                    expiryDay=firebase.firestore.Timestamp.fromDate(currentDate);
-                    }else{
-                        expiryDay=null;
-                    }
-                });
-                finalCheckout();
-            });
+            
+            // If planId not set from server, get from order_json
+            if(!planId) {
+                planId = order_json.planId;
+            }
 
+            $(document).ready(function() {
+                // Calculate expiry date
+                var expiryDay = null;
+                if(planData && planData.expiryDay && planData.expiryDay != '-1') {
+                    var currentDate = new Date();
+                    currentDate.setDate(currentDate.getDate() + parseInt(planData.expiryDay));
+                    expiryDay = currentDate.toISOString();
+                } else if(order_json.planData && order_json.planData.expiryDay && order_json.planData.expiryDay != '-1') {
+                    var currentDate = new Date();
+                    currentDate.setDate(currentDate.getDate() + parseInt(order_json.planData.expiryDay));
+                    expiryDay = currentDate.toISOString();
+                }
 
+                // Prepare plan data for submission
+                var finalPlanData = planData ? planData : (order_json.planData ? order_json.planData : {});
 
-            function finalCheckout() {
-                userDetailsRef.get().then(async function(userSnapshots) {
-                    var userDetails=userSnapshots.docs[0].data();
-                    payment_method='<?php        echo $payment_method; ?>';
-                    var createdAt=firebase.firestore.FieldValue.serverTimestamp();
-                    await database.collection('users').doc(userId).update({
-                        'subscription_plan': planData,
-                        'subscriptionPlanId': planId,
-                        'subscriptionExpiryDate': expiryDay,
-                    }).then(async function(result) {
-                        if(vendorId!=null) {
-                            await database.collection('vendors').doc(vendorId).update({
-                                'subscription_plan': planData,
-                                'subscriptionPlanId': planId,
-                                'subscriptionExpiryDate': expiryDay,
-                                'subscriptionTotalOrders':planData.orderLimit
-                            })
-                        }
-                        await database.collection('subscription_history').doc(id_order).set({
-                            'id': id_order,
-                            'user_id': userId,
-                            'expiry_date': expiryDay,
-                            'createdAt': createdAt,
-                            'subscription_plan': planData,
-                            'payment_type': payment_method
-                        }).then(async function(snapshot) {
+                var finalizeData = {
+                    user_id: userId,
+                    plan_id: planId,
+                    plan_data: JSON.stringify(finalPlanData),
+                    expiry_date: expiryDay,
+                    transaction_id: transactionId,
+                    payment_date: paymentDate,
+                    payment_method: payment_method,
+                    subscription_order_id: subscriptionOrderId,
+                    vendor_id: vendorId,
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                };
+
+                $.ajax({
+                    type: 'POST',
+                    url: '{{ route("finalize-subscription") }}',
+                    data: finalizeData,
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if(response.success) {
+                            // Update subscription flag
                             var url="{{ route('setSubcriptionFlag') }}";
-
                             $.ajax({
-
                                 type: 'POST',
                                 url: url,
                                 data: {
                                     email: "<?php        echo Auth::user()->email; ?>",
                                     isSubscribed: 'true'
                                 },
-
                                 headers: {
                                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                                 },
-
                                 success: function(data) {
                                     if(data.access) {
                                         $("#data-table_processing").hide();
-                                        window.location.href='{{ route('dashboard') }}';
+                                        window.location.href='{{ route('home') }}';
                                     }
                                 }
-
-
                             });
-
-                        })
-                    });
+                        } else {
+                            alert('Error: ' + (response.message || 'Failed to finalize subscription'));
+                            $("#data-table_processing").hide();
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error('Subscription finalization error:', xhr);
+                        var errorMsg = 'Error finalizing subscription. Please contact support.';
+                        if(xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMsg = xhr.responseJSON.message;
+                        }
+                        alert(errorMsg);
+                        $("#data-table_processing").hide();
+                    }
                 });
-            }
+            });
             <?php    } ?>
         </script>
     @endif

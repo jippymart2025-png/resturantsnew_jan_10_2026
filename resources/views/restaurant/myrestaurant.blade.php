@@ -15,6 +15,68 @@
         $currentPhoto = $vendorData->photo ?? $placeholderImageUrl;
         $galleryImages = $vendorData->photos ?? [];
         $adminCommissionSetting = $settings['AdminCommission']->fields ?? [];
+        
+        // Format phone number for Razorpay
+        // Razorpay expects: International format [country_code][phone_number] all digits
+        // Example for India: 919876543217 (91 is country code, 9876543217 is 10-digit number)
+        
+        // Try user's phone number first
+        $phoneNumber = trim($user->phoneNumber ?? '');
+        $countryCode = trim($user->countryCode ?? '+91');
+        
+        // If user phone number is incomplete, try vendor's phone number as fallback
+        $phoneDigits = preg_replace('/\D+/', '', $phoneNumber);
+        if (empty($phoneDigits) || strlen($phoneDigits) < 10) {
+            // Try vendor's phone number from vendors table
+            $vendorPhone = trim($vendorData->phonenumber ?? '');
+            if (!empty($vendorPhone)) {
+                $phoneNumber = $vendorPhone;
+                $phoneDigits = preg_replace('/\D+/', '', $vendorPhone);
+            }
+        }
+        
+        // Extract country code digits (remove + and any non-digits)
+        $countryCodeDigits = preg_replace('/\D+/', '', $countryCode);
+        if (empty($countryCodeDigits)) {
+            $countryCodeDigits = '91'; // Default to India
+        }
+        
+        // Remove country code from phone if it's already included at the start
+        if (!empty($phoneDigits) && !empty($countryCodeDigits)) {
+            $countryCodeLength = strlen($countryCodeDigits);
+            // Check if phone number already starts with country code
+            if (strlen($phoneDigits) > $countryCodeLength && substr($phoneDigits, 0, $countryCodeLength) === $countryCodeDigits) {
+                // Remove country code from the beginning to get pure phone number
+                $phoneDigits = substr($phoneDigits, $countryCodeLength);
+            }
+        }
+        
+        // Format for Razorpay: country code + phone number (all digits, no spaces)
+        // This is the E.164 format without the + sign
+        // Only send if we have a valid complete phone number (at least 10 digits for India)
+        if (!empty($phoneDigits) && strlen($phoneDigits) >= 10) {
+            // For Indian numbers, ensure we have exactly 10 digits
+            if ($countryCodeDigits === '91') {
+                // If exactly 10 digits, use as is
+                if (strlen($phoneDigits) === 10) {
+                    $razorpayContact = $countryCodeDigits . $phoneDigits; // 91 + 10 digits = 12 digits total
+                } elseif (strlen($phoneDigits) > 10) {
+                    // If more than 10, take last 10 digits (most likely the actual number)
+                    $phoneDigits = substr($phoneDigits, -10);
+                    $razorpayContact = $countryCodeDigits . $phoneDigits;
+                } else {
+                    // If less than 10, it's incomplete - don't send it
+                    $razorpayContact = '';
+                }
+            } else {
+                // For other countries, combine country code + phone digits
+                $razorpayContact = $countryCodeDigits . $phoneDigits;
+            }
+        } else {
+            // Phone number is empty or too short - don't send it
+            // Razorpay will prompt user to enter it manually
+            $razorpayContact = '';
+        }
         $adminCommissionValue = old(
             'admin_commission',
             data_get($vendorData->adminCommission ?? [], 'fix_commission', $adminCommissionSetting['commission'] ?? '')
@@ -99,7 +161,43 @@ $workingHours = old(
             <div class="card">
                 <div class="card-body">
                     @if(session('success'))
-                        <div class="alert alert-success mb-4">{{ session('success') }}</div>
+                        <div class="alert alert-success alert-dismissible mb-4" role="alert" id="success-message-alert" style="display: block !important; opacity: 1 !important; visibility: visible !important;">
+                            <i class="fa fa-check-circle mr-2"></i>
+                            <strong>{{ __('Success!') }}</strong> {{ session('success') }}
+                            <button type="button" class="close" aria-label="Close" onclick="document.getElementById('success-message-alert').style.display='none'">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <script>
+                            // Minimal script for success message - isolated and non-conflicting
+                            (function() {
+                                var alertEl = document.getElementById('success-message-alert');
+                                if (alertEl) {
+                                    // Remove Bootstrap fade class to prevent conflicts
+                                    alertEl.classList.remove('fade');
+                                    // Ensure visibility with inline styles (highest priority)
+                                    alertEl.style.cssText += 'display: block !important; opacity: 1 !important; visibility: visible !important;';
+                                    
+                                    // Scroll to top smoothly
+                                    if (window.pageYOffset > 50) {
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }
+                                    
+                                    // Auto-dismiss after 8 seconds (optional)
+                                    setTimeout(function() {
+                                        if (alertEl && alertEl.parentNode) {
+                                            alertEl.style.opacity = '0';
+                                            alertEl.style.transition = 'opacity 0.3s';
+                                            setTimeout(function() {
+                                                if (alertEl && alertEl.parentNode) {
+                                                    alertEl.style.display = 'none';
+                                                }
+                                            }, 300);
+                                        }
+                                    }, 8000);
+                                }
+                            })();
+                        </script>
                     @endif
 
                     @if($errors->any())
@@ -240,7 +338,7 @@ $workingHours = old(
 
 
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-md-6" style="display:none;">
                                     <div class="form-group">
                                         <label for="admin_commission">{{ __('Admin Commission') }}</label>
                                         <input type="text"
@@ -271,23 +369,8 @@ $workingHours = old(
                                 </div>
                             </div>
 
+                            {{-- Zone Selection Fields (Must come before Subscription Plan) --}}
                             <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="restaurant_address">{{ trans('lang.restaurant_address') }}</label>
-                                        <input type="text"
-                                               id="restaurant_address"
-                                               name="location"
-                                               class="form-control @error('location') is-invalid @enderror"
-                                               value="{{ old('location', $vendorData->location ?? '') }}"
-                                               required>
-                                        <small
-                                            class="form-text text-muted">{{ trans('lang.restaurant_address_help') }}</small>
-                                        @error('location')
-                                        <small class="text-danger">{{ $message }}</small>
-                                        @enderror
-                                    </div>
-                                </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="zone">{{ trans('lang.zone') }}</label>
@@ -307,9 +390,6 @@ $workingHours = old(
                                         @enderror
                                     </div>
                                 </div>
-                            </div>
-
-                            <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="zone_slug">{{ __('Zone Slug') }}</label>
@@ -322,6 +402,26 @@ $workingHours = old(
                                         <small
                                             class="form-text text-muted">{{ __('Auto-generated from selected zone.') }}</small>
                                         @error('zone_slug')
+                                        <small class="text-danger">{{ $message }}</small>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Address and Location Fields (Must come before Subscription Plan) --}}
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="restaurant_address">{{ trans('lang.restaurant_address') }}</label>
+                                        <input type="text"
+                                               id="restaurant_address"
+                                               name="location"
+                                               class="form-control @error('location') is-invalid @enderror"
+                                               value="{{ old('location', $vendorData->location ?? '') }}"
+                                               required>
+                                        <small
+                                            class="form-text text-muted">{{ trans('lang.restaurant_address_help') }}</small>
+                                        @error('location')
                                         <small class="text-danger">{{ $message }}</small>
                                         @enderror
                                     </div>
@@ -357,6 +457,188 @@ $workingHours = old(
                                         @error('longitude')
                                         <small class="text-danger">{{ $message }}</small>
                                         @enderror
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Subscription Plan Selection --}}
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label>{{ __('Select Subscription Plan') }} <span class="text-danger">*</span></label>
+                                        <select id="subscription_plan_select"
+                                                name="subscription_plan_id"
+                                                class="form-control @error('subscription_plan_id') is-invalid @enderror"
+                                                required>
+                                            <option value="">{{ __('-- Select a subscription plan --') }}</option>
+                                            @foreach($subscriptionPlans as $plan)
+                                                <option value="{{ $plan->id }}"
+                                                        data-name="{{ $plan->name }}"
+                                                        data-price="{{ $plan->price }}"
+                                                        data-place="{{ $plan->place }}"
+                                                        data-expiry-day="{{ $plan->expiryDay }}"
+                                                        data-description="{{ $plan->description ?? '' }}"
+                                                        data-plan-type="{{ $plan->plan_type ?? ($plan->type ?? 'commission') }}"
+                                                        data-zone="{{ $plan->zone ?? '' }}"
+                                                        {{ $vendor && $vendor->subscriptionPlanId == $plan->id ? 'selected' : '' }}>
+                                                    {{ $plan->name }} - {{ $currency['symbol'] }}{{ number_format($plan->price, 2) }} ({{ $plan->place }}%)
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <small class="form-text text-muted">{{ __('Select a subscription plan to proceed with payment. Plans are filtered by selected zone.') }}</small>
+                                        @error('subscription_plan_id')
+                                        <small class="text-danger">{{ $message }}</small>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Plan Details Display --}}
+                            <div id="plan-details-container" class="row" style="display: none;">
+                                <div class="col-md-12">
+                                    <div class="card border-primary">
+                                        <div class="card-header bg-primary text-white">
+                                            <h5 class="mb-0">{{ __('Selected Plan Details') }}</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <p><strong>{{ __('Plan Name') }}:</strong> <span id="plan-name-display"></span></p>
+                                                    <p><strong>{{ __('Price') }}:</strong> <span id="plan-price-display"></span></p>
+                                                    <p id="plan-commission-container" style="display:none;"><strong>{{ __('Commission Percentage') }}:</strong> <span id="plan-place-display"></span>%</p>
+                                                    <p id="plan-type-display-container"><strong>{{ __('Plan Type') }}:</strong> <span id="plan-type-display"></span></p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <p><strong>{{ __('Description') }}:</strong> <span id="plan-description-display"></span></p>
+                                                    <p><strong>{{ __('Expiry Days') }}:</strong> <span id="plan-expiry-display"></span></p>
+                                                </div>
+                                            </div>
+                                            <div class="text-center mt-3">
+                                                <button type="button"
+                                                        class="btn btn-success btn-lg"
+                                                        id="proceed-to-payment-btn"
+                                                        @if(!$vendor) disabled @endif>
+                                                    <i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}
+                                                </button>
+                                                @if(!$vendor)
+                                                    <p class="text-danger mt-2 mb-0">
+                                                        {{ __('Please save your restaurant details once before purchasing a subscription plan.') }}
+                                                    </p>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Subscription/Commission Type Fields - Hidden by default, shown dynamically when plan is selected --}}
+                            <div id="subscription_details_container" class="row" style="display: none;">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>{{ __('Subscription') }}</label>
+                                        <input type="text"
+                                               id="subscription_status_display"
+                                               class="form-control"
+                                               readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6" style="display:none;">
+                                    <div class="form-group">
+                                        <label>{{ __('Commission Type') }}</label>
+                                        <input type="text"
+                                               id="commission_type_display"
+                                               class="form-control"
+                                               readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="plan_commission_details_container" class="row" style="display: none;">
+                                {{-- Subscription Slab: Only show for subscription plans (not commission) --}}
+                                <div class="col-md-6" id="subscription_slab_container" style="display:none;">
+                                    <div class="form-group">
+                                        <label>{{ __('Subscription Slab') }}</label>
+                                        <input type="text"
+                                               id="subscription_slab_display"
+                                               class="form-control"
+                                               readonly>
+                                        <small class="form-text text-muted">{{ __('Display if subscription plan selected (not commission)') }}</small>
+                                    </div>
+                                </div>
+                                {{-- Commission Percentage: Show for commission plan --}}
+                                <div class="col-md-6" id="commission_percentage_container" style="display:none;">
+                                    <div class="form-group">
+                                        <label>{{ __('% added on Item') }}</label>
+                                        <input type="text"
+                                               id="commission_percentage_display"
+                                               class="form-control"
+                                               readonly>
+                                        <small class="form-text text-muted">{{ __('Commission percentage (shown for commission plan)') }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            {{-- Plan Details: Show for both commission and subscription plans when plan is selected --}}
+                            <div id="plan_details_info_container" class="row" style="display: none;">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>{{ __('Plan Name') }}</label>
+                                        <input type="text"
+                                               id="plan_name_display"
+                                               class="form-control"
+                                               readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>{{ __('Plan Type') }}</label>
+                                        <input type="text"
+                                               id="plan_type_display"
+                                               class="form-control"
+                                               readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="plan_payment_info_container" class="row" style="display: none;">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>{{ __('Payment Status') }}</label>
+                                        <input type="text"
+                                               id="payment_status_display"
+                                               class="form-control"
+                                               value=""
+                                               readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6" id="expiry_date_container" style="display:none;">
+                                    <div class="form-group">
+                                        <label>{{ __('Expiry Date') }}</label>
+                                        <input type="text"
+                                               id="expiry_date_display"
+                                               class="form-control"
+                                               value=""
+                                               readonly>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- GST Agreement Toggle --}}
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <div class="form-check">
+                                            <input type="checkbox"
+                                                   class="form-check-input"
+                                                   id="gst_agreement"
+                                                   name="gst"
+                                                   value="1"
+                                                   {{ old('gst', $vendorData->gst ?? 0) ? 'checked' : '' }}>
+                                            <label class="form-check-label" for="gst_agreement">
+                                                <strong>{{ __('GST Agreement') }}</strong>
+                                                <small class="text-muted d-block">{{ __('I agree to GST terms. Platform will absorb 5% GST if checked.') }}</small>
+                                            </label>
+                                    </div>
+                                        <small class="form-text text-muted">
+                                            {{ __('If checked: Platform absorbs 5% GST. If unchecked: GST (5%) will be added to customer price.') }}
+                                        </small>
                                     </div>
                                 </div>
                             </div>
@@ -857,8 +1139,121 @@ $workingHours = old(
                         zoneSlug.value = slugify(option.text);
                     }
                 };
-                zoneSelect.addEventListener('change', updateZoneSlug);
+                zoneSelect.addEventListener('change', function() {
+                    updateZoneSlug();
+                    // Reset subscription plan selection when zone changes
+                    if (subscriptionPlanSelect) {
+                        subscriptionPlanSelect.value = '';
+                        updateSubscriptionDetailsDisplay(null);
+                        if (planDetailsContainer) {
+                            planDetailsContainer.style.display = 'none';
+                        }
+                    }
+                    updateSubscriptionPlansByZone();
+                });
                 updateZoneSlug();
+            }
+            
+            // Function to update subscription plans based on selected zone
+            function updateSubscriptionPlansByZone() {
+                const zoneSelect = document.getElementById('zone');
+                const subscriptionPlanSelect = document.getElementById('subscription_plan_select');
+                const planDetailsContainer = document.getElementById('plan-details-container');
+                
+                if (!zoneSelect || !subscriptionPlanSelect) {
+                    return;
+                }
+                
+                // Get zone_id from the zone dropdown (ID from zone table)
+                const zoneId = zoneSelect.value;
+                
+                // Store currently selected plan ID (if any) to try to preserve it
+                const currentSelectedPlanId = subscriptionPlanSelect.value;
+                
+                // Show loading state
+                subscriptionPlanSelect.disabled = true;
+                subscriptionPlanSelect.innerHTML = '<option value="">Loading plans...</option>';
+                
+                // Fetch subscription plans for the selected zone using zone_id
+                const url = '{{ route("restaurant.subscription-plans") }}' + 
+                    (zoneId ? '?zone_id=' + encodeURIComponent(zoneId) : '');
+                fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.plans) {
+                        // Clear existing options
+                        subscriptionPlanSelect.innerHTML = '<option value="">{{ __('-- Select a subscription plan --') }}</option>';
+                        
+                        let foundPreviousSelection = false;
+                        
+                        // Add new options
+                        data.plans.forEach(function(plan) {
+                            const option = document.createElement('option');
+                            option.value = plan.id;
+                            option.setAttribute('data-name', plan.name || '');
+                            option.setAttribute('data-price', plan.price || 0);
+                            option.setAttribute('data-place', plan.place || 0);
+                            option.setAttribute('data-expiry-day', plan.expiryDay || '-1');
+                            option.setAttribute('data-description', plan.description || '');
+                            option.setAttribute('data-plan-type', plan.plan_type || (plan.type || 'commission'));
+                            option.setAttribute('data-zone', plan.zone || '');
+                            
+                            // Try to preserve previous selection if this plan matches
+                            if (currentSelectedPlanId && plan.id === currentSelectedPlanId) {
+                                option.selected = true;
+                                foundPreviousSelection = true;
+                            }
+                            
+                            const currencySymbol = '{{ $currencyMeta['symbol'] ?? '₹' }}';
+                            const planType = plan.plan_type || (plan.place > 0 ? 'commission' : 'subscription');
+                            let planText = plan.name + ' - ' + currencySymbol + parseFloat(plan.price || 0).toFixed(2);
+                            
+                            // Only show commission percentage for commission plans
+                            if (planType === 'commission' && plan.place > 0) {
+                                planText += ' (' + plan.place + '%)';
+                            }
+                            
+                            option.textContent = planText;
+                            
+                            subscriptionPlanSelect.appendChild(option);
+                        });
+                        
+                        // If previous selection was preserved, trigger change event to update plan details
+                        if (foundPreviousSelection && subscriptionPlanSelect.value) {
+                            subscriptionPlanSelect.dispatchEvent(new Event('change'));
+                        } else {
+                            // Hide plan details if previous selection not found
+                            if (planDetailsContainer) {
+                                planDetailsContainer.style.display = 'none';
+                            }
+                        }
+                    } else {
+                        subscriptionPlanSelect.innerHTML = '<option value="">{{ __('-- Select a subscription plan --') }}</option>';
+                        if (planDetailsContainer) {
+                            planDetailsContainer.style.display = 'none';
+                        }
+                        if (data.message) {
+                            console.warn('Failed to load subscription plans:', data.message);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching subscription plans:', error);
+                    subscriptionPlanSelect.innerHTML = '<option value="">{{ __('-- Select a subscription plan --') }}</option>';
+                    if (planDetailsContainer) {
+                        planDetailsContainer.style.display = 'none';
+                    }
+                    alert('{{ __('Failed to load subscription plans. Please refresh the page.') }}');
+                })
+                .finally(() => {
+                    subscriptionPlanSelect.disabled = false;
+                });
             }
 
             if (categorySelect && categorySearch) {
@@ -1002,6 +1397,367 @@ $workingHours = old(
             });
 
             updateSpecialOfferVisibility();
+
+            // Subscription Plan Selection and Razorpay Payment
+            const subscriptionPlanSelect = document.getElementById('subscription_plan_select');
+            const planDetailsContainer = document.getElementById('plan-details-container');
+            const proceedToPaymentBtn = document.getElementById('proceed-to-payment-btn');
+            const razorpayKey = '{{ $razorpayKey }}';
+            const razorpayEnabled = {{ $razorpayEnabled ? 'true' : 'false' }};
+
+            // Function to update subscription details display - ONLY show if payment is completed
+            function updateSubscriptionDetailsDisplay(selectedOption) {
+                // Always hide subscription details first
+                document.getElementById('subscription_details_container').style.display = 'none';
+                document.getElementById('plan_commission_details_container').style.display = 'none';
+                document.getElementById('plan_details_info_container').style.display = 'none';
+                document.getElementById('plan_payment_info_container').style.display = 'none';
+                
+                if (!selectedOption || !selectedOption.value) {
+                    // No plan selected, keep everything hidden
+                    return;
+                }
+                
+                // Check if payment is completed for this plan
+                const selectedPlanId = selectedOption.value;
+                const vendorPlanId = '{{ ($vendor && $vendor->subscriptionPlanId) ? $vendor->subscriptionPlanId : "" }}';
+                const billStatus = '{{ ($vendor && isset($vendor->bill_status)) ? $vendor->bill_status : "" }}';
+                const isPaymentCompleted = (vendorPlanId === selectedPlanId && billStatus === 'paid');
+                
+                // Only show subscription details if payment is completed for this specific plan
+                if (!isPaymentCompleted) {
+                    // Payment not completed, keep details hidden
+                    return;
+                }
+                
+                // Payment is completed, show the details
+                // Get plan type
+                const planType = selectedOption.dataset.planType || (parseFloat(selectedOption.dataset.place || 0) > 0 ? 'commission' : 'subscription');
+                const isCommissionPlan = planType === 'commission';
+                const placeValue = parseFloat(selectedOption.dataset.place || 0);
+                
+                // Show subscription details container
+                document.getElementById('subscription_details_container').style.display = 'block';
+                document.getElementById('plan_commission_details_container').style.display = 'block';
+                document.getElementById('plan_details_info_container').style.display = 'block';
+                
+                // Update subscription status
+                document.getElementById('subscription_status_display').value = isCommissionPlan ? '{{ __('No') }}' : '{{ __('Yes') }}';
+                document.getElementById('commission_type_display').value = isCommissionPlan ? '{{ __('Commission') }}' : '{{ __('Subscription') }}';
+                
+                // Show/hide and update commission percentage or subscription slab
+                if (isCommissionPlan && placeValue > 0) {
+                    // Show commission percentage
+                    document.getElementById('commission_percentage_container').style.display = 'block';
+                    document.getElementById('subscription_slab_container').style.display = 'none';
+                    document.getElementById('commission_percentage_display').value = placeValue + '%';
+                } else {
+                    // Show subscription slab
+                    document.getElementById('commission_percentage_container').style.display = 'none';
+                    document.getElementById('subscription_slab_container').style.display = 'block';
+                    const planPrice = parseFloat(selectedOption.dataset.price || 0);
+                    document.getElementById('subscription_slab_display').value = '{{ $currencyMeta['symbol'] }}' + planPrice.toFixed(2);
+                }
+                
+                // Update plan details
+                document.getElementById('plan_name_display').value = selectedOption.dataset.name || '';
+                document.getElementById('plan_type_display').value = isCommissionPlan ? '{{ __('Commission Plan') }}' : '{{ __('Subscription Plan') }}';
+                
+                // Show payment info since payment is completed
+                document.getElementById('plan_payment_info_container').style.display = 'block';
+                document.getElementById('payment_status_display').value = 'paid';
+                
+                const expiryDay = selectedOption.dataset.expiryDay || '-1';
+                if (!isCommissionPlan && expiryDay !== '-1') {
+                    document.getElementById('expiry_date_container').style.display = 'block';
+                    // Get expiry date from vendor if available
+                    const vendorExpiryDate = '{{ ($vendor && $vendor->subscriptionExpiryDate) ? $vendor->subscriptionExpiryDate : "" }}';
+                    document.getElementById('expiry_date_display').value = vendorExpiryDate || 'N/A';
+                } else {
+                    document.getElementById('expiry_date_container').style.display = 'none';
+                }
+            }
+            
+            if (subscriptionPlanSelect) {
+                // Initialize display on page load if plan is already selected and paid
+                const initialSelectedOption = subscriptionPlanSelect.options[subscriptionPlanSelect.selectedIndex];
+                if (initialSelectedOption && initialSelectedOption.value) {
+                    // Show plan details card if plan is selected (for payment)
+                    const planType = initialSelectedOption.dataset.planType || (parseFloat(initialSelectedOption.dataset.place || 0) > 0 ? 'commission' : 'subscription');
+                    const isCommissionPlan = planType === 'commission';
+                    
+                    document.getElementById('plan-name-display').textContent = initialSelectedOption.dataset.name || '';
+                    document.getElementById('plan-price-display').textContent = '{{ $currencyMeta['symbol'] }}' + parseFloat(initialSelectedOption.dataset.price || 0).toFixed(2);
+                    document.getElementById('plan-description-display').textContent = initialSelectedOption.dataset.description || 'N/A';
+                    const expiryDay = initialSelectedOption.dataset.expiryDay || '-1';
+                    document.getElementById('plan-expiry-display').textContent = expiryDay === '-1' ? 'Unlimited' : expiryDay + ' days';
+                    
+                    const commissionContainer = document.getElementById('plan-commission-container');
+                    if (isCommissionPlan && parseFloat(initialSelectedOption.dataset.place || 0) > 0) {
+                        document.getElementById('plan-place-display').textContent = initialSelectedOption.dataset.place || '0';
+                        commissionContainer.style.display = 'block';
+                    } else {
+                        commissionContainer.style.display = 'none';
+                    }
+                    
+                    document.getElementById('plan-type-display').textContent = isCommissionPlan ? '{{ __('Commission Plan') }}' : '{{ __('Subscription Plan') }}';
+                    
+                    // Check if payment is completed
+                    const vendorPlanId = '{{ ($vendor && $vendor->subscriptionPlanId) ? $vendor->subscriptionPlanId : "" }}';
+                    const billStatus = '{{ ($vendor && isset($vendor->bill_status)) ? $vendor->bill_status : "" }}';
+                    const isPaymentCompleted = (vendorPlanId === initialSelectedOption.value && billStatus === 'paid');
+                    
+                    // Only show plan details card if payment is NOT completed (to allow payment)
+                    // If payment is completed, hide the card and show subscription details instead
+                    if (isPaymentCompleted) {
+                        planDetailsContainer.style.display = 'none';
+                        updateSubscriptionDetailsDisplay(initialSelectedOption);
+                    } else {
+                        planDetailsContainer.style.display = 'block';
+                    }
+                }
+                
+                subscriptionPlanSelect.addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    
+                    // Check if payment is completed for this plan
+                    const selectedPlanId = selectedOption ? selectedOption.value : '';
+                    const vendorPlanId = '{{ ($vendor && $vendor->subscriptionPlanId) ? $vendor->subscriptionPlanId : "" }}';
+                    const billStatus = '{{ ($vendor && isset($vendor->bill_status)) ? $vendor->bill_status : "" }}';
+                    const isPaymentCompleted = (vendorPlanId === selectedPlanId && billStatus === 'paid');
+                    
+                    if (selectedOption && selectedOption.value) {
+                        // Show plan details
+                        const planType = selectedOption.dataset.planType || (parseFloat(selectedOption.dataset.place || 0) > 0 ? 'commission' : 'subscription');
+                        const isCommissionPlan = planType === 'commission';
+                        
+                        document.getElementById('plan-name-display').textContent = selectedOption.dataset.name || '';
+                        document.getElementById('plan-price-display').textContent = '{{ $currencyMeta['symbol'] }}' + parseFloat(selectedOption.dataset.price || 0).toFixed(2);
+                        document.getElementById('plan-description-display').textContent = selectedOption.dataset.description || 'N/A';
+                        const expiryDay = selectedOption.dataset.expiryDay || '-1';
+                        document.getElementById('plan-expiry-display').textContent = expiryDay === '-1' ? 'Unlimited' : expiryDay + ' days';
+                        
+                        // Show/hide commission percentage based on plan type
+                        const commissionContainer = document.getElementById('plan-commission-container');
+                        if (isCommissionPlan && parseFloat(selectedOption.dataset.place || 0) > 0) {
+                            document.getElementById('plan-place-display').textContent = selectedOption.dataset.place || '0';
+                            commissionContainer.style.display = 'block';
+                        } else {
+                            commissionContainer.style.display = 'none';
+                        }
+                        
+                        // Show plan type
+                        document.getElementById('plan-type-display').textContent = isCommissionPlan ? '{{ __('Commission Plan') }}' : '{{ __('Subscription Plan') }}';
+                        
+                        // Show plan details card ONLY if payment is NOT completed (to allow payment)
+                        // If payment is completed, hide the card and show subscription details instead
+                        if (isPaymentCompleted) {
+                            planDetailsContainer.style.display = 'none';
+                        } else {
+                            planDetailsContainer.style.display = 'block';
+                        }
+                    } else {
+                        planDetailsContainer.style.display = 'none';
+                    }
+                    
+                    // Update subscription details display (will only show if payment is completed)
+                    updateSubscriptionDetailsDisplay(selectedOption);
+                });
+            }
+
+            if (proceedToPaymentBtn) {
+                proceedToPaymentBtn.addEventListener('click', function() {
+                    const selectedPlanId = subscriptionPlanSelect.value;
+                    if (!selectedPlanId) {
+                        alert('{{ __('Please select a subscription plan first') }}');
+                        return;
+                    }
+
+                    if (!razorpayEnabled || !razorpayKey) {
+                        alert('{{ __('Razorpay payment is not configured. Please contact administrator.') }}');
+                        return;
+                    }
+
+                    const selectedOption = subscriptionPlanSelect.options[subscriptionPlanSelect.selectedIndex];
+                    const planPrice = parseFloat(selectedOption.dataset.price || 0);
+                    const planName = selectedOption.dataset.name || '';
+
+                    if (planPrice <= 0) {
+                        alert('{{ __('This plan is free. Processing subscription...') }}');
+                        // Handle free plan
+                        processFreeSubscription(selectedPlanId, selectedOption);
+                        return;
+                    }
+
+                    // Create Razorpay order
+                    createRazorpayOrder(selectedPlanId, planPrice, planName, selectedOption);
+                });
+            }
+
+            function createRazorpayOrder(planId, amount, planName, planOption) {
+                // Show loading
+                proceedToPaymentBtn.disabled = true;
+                proceedToPaymentBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> {{ __('Creating order...') }}';
+
+                // Create order on server first
+                fetch('{{ route("restaurant.subscription.create-order") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        plan_id: planId,
+                        amount: amount
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert(data.message || '{{ __('Failed to create payment order. Please try again.') }}');
+                        proceedToPaymentBtn.disabled = false;
+                        proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
+                        return;
+                    }
+
+                    // If free plan, process directly
+                    if (data.order_id === null || amount <= 0) {
+                        processFreeSubscription(planId, planOption);
+                        return;
+                    }
+
+                    // Convert amount to paise (Razorpay uses smallest currency unit)
+                    const amountInPaise = Math.round(amount * 100);
+
+                    const options = {
+                        key: razorpayKey,
+                        amount: amountInPaise,
+                        currency: data.currency || 'INR',
+                        order_id: data.order_id,
+                        name: '{{ $vendor->title ?? "Restaurant" }}',
+                        description: planName,
+                        handler: function(response) {
+                            // Payment successful
+                            processPaymentSuccess(response, planId, planOption);
+                        },
+                        prefill: {
+                            name: '{{ $user->firstName ?? "" }} {{ $user->lastName ?? "" }}',
+                            email: '{{ $user->email ?? "" }}'@if(!empty($razorpayContact)),
+                            contact: '{{ $razorpayContact }}'@endif
+                        },
+                        theme: {
+                            color: '#3399cc'
+                        },
+                        modal: {
+                            ondismiss: function() {
+                                console.log('Payment cancelled');
+                                proceedToPaymentBtn.disabled = false;
+                                proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
+                            }
+                        }
+                    };
+
+                    const razorpay = new Razorpay(options);
+                    razorpay.open();
+                    
+                    // Reset button state
+                    proceedToPaymentBtn.disabled = false;
+                    proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('{{ __('An error occurred. Please try again.') }}');
+                    proceedToPaymentBtn.disabled = false;
+                    proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
+                });
+            }
+
+            function processPaymentSuccess(paymentResponse, planId, planOption) {
+                // Show loading
+                proceedToPaymentBtn.disabled = true;
+                proceedToPaymentBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> {{ __('Processing...') }}';
+
+                // Send payment details to server
+                fetch('{{ route("restaurant.subscription.payment") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        plan_id: planId,
+                        payment_id: paymentResponse.razorpay_payment_id,
+                        order_id: paymentResponse.razorpay_order_id,
+                        signature: paymentResponse.razorpay_signature,
+                        plan_name: planOption.dataset.name,
+                        plan_price: planOption.dataset.price,
+                        plan_place: planOption.dataset.place,
+                        expiry_day: planOption.dataset.expiryDay
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('{{ __('Payment successful! Subscription activated.') }}');
+                        location.reload();
+                    } else {
+                        alert(data.message || '{{ __('Payment processing failed. Please try again.') }}');
+                        proceedToPaymentBtn.disabled = false;
+                        proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('{{ __('An error occurred. Please try again.') }}');
+                    proceedToPaymentBtn.disabled = false;
+                    proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
+                });
+            }
+
+            function processFreeSubscription(planId, planOption) {
+                proceedToPaymentBtn.disabled = true;
+                proceedToPaymentBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> {{ __('Processing...') }}';
+
+                fetch('{{ route("restaurant.subscription.payment") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        plan_id: planId,
+                        payment_id: null,
+                        order_id: null,
+                        signature: null,
+                        plan_name: planOption.dataset.name,
+                        plan_price: planOption.dataset.price,
+                        plan_place: planOption.dataset.place,
+                        expiry_day: planOption.dataset.expiryDay,
+                        is_free: true
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('{{ __('Subscription activated successfully!') }}');
+                        location.reload();
+                    } else {
+                        alert(data.message || '{{ __('Subscription activation failed. Please try again.') }}');
+                        proceedToPaymentBtn.disabled = false;
+                        proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('{{ __('An error occurred. Please try again.') }}');
+                    proceedToPaymentBtn.disabled = false;
+                    proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
+                });
+            }
         })();
     </script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 @endsection

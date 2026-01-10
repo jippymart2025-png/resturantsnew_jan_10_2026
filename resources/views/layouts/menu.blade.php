@@ -78,6 +78,13 @@
                     <span class="hide-menu">{{ trans('lang.payment_plural') }}</span>
                 </a>
             </li>
+            <li>
+          <a class="waves-effect waves-dark" href="{{ route('my-subscriptions') }}">
+             <i class="mdi mdi-credit-card"></i>
+             <span class="hide-menu">{{ trans('lang.subscription_list') }}</span>
+           </a>
+            </li>
+
 
             <li>
                 <a class="waves-effect waves-dark" href="{{ route('withdraw-method') }}">

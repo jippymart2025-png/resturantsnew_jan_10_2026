@@ -29,6 +29,7 @@
                                             <th>{{ trans('lang.plan_name') }}</th>
                                             <th>{{ trans('lang.price') }}</th>
                                             <th>{{ trans('lang.payment_method') }}</th>
+                                            <th>{{ __('Zone') }}</th>
                                             <th>{{ trans('lang.active_at') }}</th>
                                             <th>{{ trans('lang.expire_at') }}</th>
                                             <th>{{ trans('lang.actions') }}</th>
@@ -49,270 +50,58 @@
 @endsection
 @section('scripts')
     <script type="text/javascript">
-        var database = firebase.firestore();
-        var vendorUserId = "<?php echo $id; ?>";
-        var count=0;
-        var placeholderImage = '';
-        var currentCurrency = '';
-        var currencyAtRight = false;
-        var decimal_degits = 0;
-        var refCurrency = database.collection('currencies').where('isActive', '==', true);
-        refCurrency.get().then(async function(snapshots) {
-            var currencyData = snapshots.docs[0].data();
-            currentCurrency = currencyData.symbol;
-            currencyAtRight = currencyData.symbolAtRight;
-            if (currencyData.decimal_degits) {
-                decimal_degits = currencyData.decimal_degits;
-            }
-        });
-        var placeholder = database.collection('settings').doc('placeHolderImage');
-        placeholder.get().then(async function(snapshotsimage) {
-            var placeholderImageData = snapshotsimage.data();
-            placeholderImage = placeholderImageData.image;
-        })
-      
-        ref = database.collection('subscription_history');
         $(document).ready(function() {
             $(document.body).on('click', '.redirecttopage', function() {
                 var url = $(this).attr('data-url');
                 window.location.href = url;
             });
+            
             jQuery("#data-table_processing").show();
+            
             const table = $('#example24').DataTable({
-                pageLength: 10, // Number of rows per page
-                processing: false, // Show processing indicator
-                serverSide: true, // Enable server-side processing
+                pageLength: 10,
+                processing: true,
+                serverSide: true,
                 responsive: true,
-                ajax: async function(data, callback, settings) {
-                    const start = data.start;
-                    const length = data.length;
-                    const searchValue = data.search.value.toLowerCase();
-                    const orderColumnIndex = data.order[0].column;
-                    const orderDirection = data.order[0].dir;
-                    const orderableColumns = ['', 'name', 'price', 'payment_type', 'createdAt',
-                        'expiry_date', ''
-                    ]; // Ensure this matches the actual column names
-                    const orderByField = orderableColumns[orderColumnIndex];
-                    if (searchValue.length >= 3 || searchValue.length === 0) {
-                        $('#data-table_processing').show();
-                    }
-                    try {
-                        const querySnapshot = await ref.where('user_id', '==', vendorUserId).orderBy('createdAt','desc').get();
-                        if (!querySnapshot || querySnapshot.empty) {
-                            console.error("No data found in Firestore.");
-                            $('#data-table_processing').hide(); // Hide loader
-                            callback({
-                                draw: data.draw,
-                                recordsTotal: 0,
-                                recordsFiltered: 0,
-                                data: [] // No data
-                            });
-                            return;
-                        }
-                        let records = [];
-                        let filteredRecords = [];
-                        
-                        await Promise.all(querySnapshot.docs.map(async (doc) => {
-                            let childData = doc.data();
-                            childData.id = doc
-                                .id; // Ensure the document ID is included in the data
-                            if (currencyAtRight) {
-                                price = parseFloat(childData.subscription_plan.price)
-                                    .toFixed(decimal_degits) + "" + currentCurrency;
+                ajax: {
+                    url: "{{ route('my-subscriptions.data') }}",
+                    type: 'GET',
+                    timeout: 30000, // 30 second timeout
+                    data: function(d) {
+                        // DataTables will automatically send start, length, search, order, etc.
+                    },
+                    error: function(xhr, error, thrown) {
+                        console.error("Error fetching subscription history:", error, xhr);
+                        console.error("Response:", xhr.responseText);
+                        jQuery('#data-table_processing').hide();
+                        if (xhr.status === 0) {
+                            alert('Request timeout. Please check your connection and try again.');
                             } else {
-                                price = currentCurrency + "" + parseFloat(childData
-                                    .subscription_plan.price).toFixed(
-                                    decimal_degits);
+                            alert('Error loading subscription history. Please refresh the page.');
                             }
-                            childData.price = price ? price : 0.00;
-                            var date = '';
-                            var time = '';
-                            if (childData.hasOwnProperty("expiry_date") && childData
-                                .expiry_date != '' && childData.expiry_date != null) {
-                                try {
-                                    date = childData.expiry_date.toDate()
-                                        .toDateString();
-                                    time = childData.expiry_date.toDate()
-                                        .toLocaleTimeString('en-US');
-                                } catch (err) {
-                                }
-                            }
-                            var expiresAt = date + ' ' + time;
-                            childData.expiresAt = expiresAt;
-                            if (childData.hasOwnProperty("createdAt") && childData
-                                .createdAt != '' && childData.createdAt != null) {
-                                try {
-                                    date = childData.createdAt.toDate().toDateString();
-                                    time = childData.createdAt.toDate()
-                                        .toLocaleTimeString('en-US');
-                                } catch (err) {
-                                }
-                            }
-                            var createdAt = date + ' ' + time;
-                            childData.buyOn = createdAt;
-                            if (searchValue) {
-                                if (
-                                    (childData.subscription_plan.name && childData
-                                        .subscription_plan.name.toString().toLowerCase()
-                                        .includes(searchValue)) ||
-                                    (childData.subscription_plan.price && childData
-                                        .subscription_plan.price.toString()
-                                        .toLowerCase().includes(searchValue)) ||
-                                    (childData.payment_type && childData.payment_type
-                                        .toString().toLowerCase().includes(searchValue)
-                                    ) ||
-                                    (expiresAt && expiresAt.toString().toLowerCase()
-                                        .indexOf(searchValue) > -1) ||
-                                    (createdAt && createdAt.toString().toLowerCase()
-                                        .indexOf(searchValue) > -1)) {
-                                    filteredRecords.push(childData);
-                                }
-                            } else {
-                                filteredRecords.push(childData);
-                            }
-                        }));
-                        filteredRecords.sort((a, b) => {
-                            let aValue = a[orderByField] ? a[orderByField].toString()
-                                .toLowerCase()
-                                .trim() : '';
-                            let bValue = b[orderByField] ? b[orderByField].toString()
-                                .toLowerCase()
-                                .trim() : '';
-                            if (orderByField === 'expiresAt' && a[orderByField] != '' && b[
-                                    orderByField] != '') {
-                                try {
-                                    aValue = a[orderByField] ? new Date(a[orderByField]
-                                        .toDate())
-                                        .getTime() : 0;
-                                    bValue = b[orderByField] ? new Date(b[orderByField]
-                                        .toDate())
-                                        .getTime() : 0;
-                                } catch (err) {}
-                            }
-                            aValue = a[orderByField] ? a[orderByField].toString().toLowerCase()
-                                .trim() : '';
-                            bValue = b[orderByField] ? b[orderByField].toString().toLowerCase()
-                                .trim() : '';
-                            if (orderByField === 'price') {
-                                aValue = a[orderByField] ? parseFloat(a[orderByField].replace(
-                                    /[^0-9.]/g, '')) || 0 : 0;
-                                bValue = b[orderByField] ? parseFloat(b[orderByField].replace(
-                                    /[^0-9.]/g, '')) || 0 : 0;
-                            }
-                            if (orderDirection === 'asc') {
-                                return (aValue > bValue) ? 1 : -1;
-                            } else {
-                                return (aValue < bValue) ? 1 : -1;
-                            }
-                        });
-                        const totalRecords = filteredRecords.length;
-                        const paginatedRecords = filteredRecords.slice(start, start + length);
-                        const formattedRecords = await Promise.all(paginatedRecords.map(async (
-                            childData) => {
-                            return await buildHTML(childData);
-                        }));
-                        $('#data-table_processing').hide(); // Hide loader
-                        callback({
-                            draw: data.draw,
-                            recordsTotal: totalRecords,
-                            recordsFiltered: totalRecords,
-                            data: formattedRecords
-                        });
-                    } catch (error) {
-                        console.error("Error fetching data from Firestore:", error);
-                        jQuery('#overlay').hide();
-                        callback({
-                            draw: data.draw,
-                            recordsTotal: 0,
-                            recordsFiltered: 0,
-                            data: []
-                        });
                     }
                 },
                 order: [
-                    ['4', 'desc']
+                    [5, 'desc']
                 ],
                 columnDefs: [{
-                        targets: 4,
+                        targets: 5,
                         type: 'date',
                         render: function(data) {
                             return data;
                         }
-                    },
-                    {
+                }, {
                         orderable: false,
-                        targets: [0, 6]
-                    },
-                ],
+                        targets: [0, 7]
+                }],
                 "language": {
                     "zeroRecords": "{{ trans('lang.no_record_found') }}",
                     "emptyTable": "{{ trans('lang.no_record_found') }}"
                 },
+                drawCallback: function() {
+                    jQuery('#data-table_processing').hide();
+                }
             });
-            function debounce(func, wait) {
-                let timeout;
-                const context = this;
-                return function(...args) {
-                    clearTimeout(timeout);
-                    timeout = setTimeout(() => func.apply(context, args), wait);
-                };
-            }
         });
-        async function buildHTML(val) {
-            var html = [];
-            var id = val.id;
-            var activeClass= (count==0) ? '<span class="badge badge-success">{{trans("lang.active")}}</span>' : '';
-            var route1 = "{{ route('my-subscription.show', ['id' => ':id']) }}".replace(':id', id);
-            html.push('<td><img  onerror="this.onerror=null;this.src=\'' + placeholderImage +
-                '\'" class="rounded" style="width:50px" src="' + val.subscription_plan.image + '" alt="image"></td>'
-                );
-            html.push('<td>' + val.subscription_plan.name +' '+ activeClass+'</td>');
-            html.push('<td>' + val.price + '</td>');
-            if (val.payment_type.toString().toLowerCase() == "stripe") {
-                image = '{{ asset('images/stripe.png') }}';
-                payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-            } else if (val.payment_type.toString().toLowerCase() == "razorpay") {
-                image = '{{ asset('images/razorpay.png') }}';
-                payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-            } else if (val.payment_type.toString().toLowerCase() == "paypal") {
-                image = '{{ asset('images/paypal.png') }}';
-                payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-            } else if (val.payment_type.toString().toLowerCase()== "payfast") {
-                image = '{{ asset('images/payfast.png') }}';
-                payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-            } else if (val.payment_type.toString().toLowerCase()== "paystack") {
-                image = '{{ asset('images/paystack.png') }}';
-                payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-            } else if (val.payment_type.toString().toLowerCase() == "flutterwave") {
-                image = '{{ asset('images/flutter_wave.png') }}';
-                payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-            } else if (val.payment_type.toString().toLowerCase() == "mercadopago") {
-                image = '{{ asset('images/marcado_pago.png') }}';
-                payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-            } else if (val.payment_type.toString().toLowerCase()== "wallet") {
-                image = '{{ asset('images/foodie_wallet.png') }}';
-                payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-            } else if (val.payment_type.toString().toLowerCase() == "paytm") {
-                image = '{{ asset('images/paytm.png') }}';
-                payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-            } else if (val.payment_type.toString().toLowerCase() == "xendit") {
-                image = '{{ asset('images/Xendit.png') }}';
-                payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-            } else if (val.payment_type.toString().toLowerCase() == "orangepay") {
-                image = '{{ asset('images/orangeMoney.png') }}';
-                payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-            } else if (val.payment_type.toString().toLowerCase() == "midtrans") {
-                image = '{{ asset('images/midtrans.png') }}';
-                payment_method = '<img style="width:100px" alt="image" src="' + image + '" >';
-            } else {
-                payment_method = val.payment_type;
-            }
-            html.push('<td>' + payment_method + '</td>');
-            html.push('<td>' + val.buyOn + '</td>');
-            (val.expiry_date!=null) ? html.push('<td>' + val.expiresAt + '</td>') : html.push('<td>{{trans("lang.unlimited")}}</td>')            
-            html.push('<span class="action-btn"><a href="' + route1 + '"><i class="fa fa-eye"></i></a></span>');
-            count++;
-            return html;
-        }
     </script>
 @endsection
