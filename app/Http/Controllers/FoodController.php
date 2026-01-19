@@ -1193,8 +1193,8 @@ class FoodController extends Controller
 
                 if (!empty($filteredTitles) && !empty($filteredPrices)) {
                     // Store as array - Laravel will auto-convert to JSON due to model casting
-                    $food->addOnsTitle = $addOnTitles ? $addOnTitles : null;
-                    $food->addOnsPrice = $addOnPrices ? $addOnPrices : null;
+                    $food->addOnsTitle = $filteredTitles;
+                    $food->addOnsPrice = $filteredPrices;
                 } else {
                     $food->addOnsTitle = null;
                     $food->addOnsPrice = null;
@@ -1430,6 +1430,11 @@ class FoodController extends Controller
         $planType = $planInfo['planType'];
         $gstAgreed = false;
 
+        // Get subscription plan place percentage for settlement calculation (EDIT page only)
+        $subscriptionPlacePercentage = 0;
+        if ($hasSubscription && $subscriptionPlan && isset($subscriptionPlan->place)) {
+            $subscriptionPlacePercentage = is_numeric($subscriptionPlan->place) ? (float)$subscriptionPlan->place : 0;
+        }
         if ($vendor) {
             // Get GST agreement
             $gstAgreed = (bool)($vendor->gst ?? 0);
@@ -1449,6 +1454,7 @@ class FoodController extends Controller
             'applyPercentage' => $applyPercentage,
             'planType' => $planType,
             'gstAgreed' => $gstAgreed,
+            'subscriptionPlacePercentage' => $subscriptionPlacePercentage, // For settlement calculation
         ]);
     }
 
@@ -1856,7 +1862,7 @@ class FoodController extends Controller
                         $planType
                     );
                     $food->price = number_format($priceResult['onlinePrice'], 2, '.', '');
-        } else {
+                } else {
                     $food->price = null;
                 }
             }
@@ -1913,7 +1919,7 @@ class FoodController extends Controller
         $food->updatedAt = $now;
 
         [$addOnTitles, $addOnPrices] = $this->prepareAddOns($request);
-       // Store as array - Laravel will auto-convert to JSON due to model casting
+        // Store as array - Laravel will auto-convert to JSON due to model casting
         $food->addOnsTitle = $addOnTitles ? $addOnTitles : null;
         $food->addOnsPrice = $addOnPrices ? $addOnPrices : null;
 
@@ -1954,7 +1960,7 @@ class FoodController extends Controller
                 }
             }
         }
-// Store as array - Laravel will auto-convert to JSON due to model casting (like workingHours in Vendor model)
+        // Store as array - Laravel will auto-convert to JSON due to model casting (like workingHours in Vendor model)
         $food->available_days = $availableDays;
         $food->available_timings = !empty($processedTimings) ? $processedTimings : null;
 

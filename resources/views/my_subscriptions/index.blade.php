@@ -21,19 +21,19 @@
                         <div class="card-body">
                             <div class="table-responsive m-t-10">
                                 <table id="example24"
-                                    class="display nowrap table table-hover table-striped table-bordered table table-striped"
-                                    cellspacing="0" width="100%">
+                                       class="display nowrap table table-hover table-striped table-bordered table table-striped"
+                                       cellspacing="0" width="100%">
                                     <thead>
-                                        <tr>
-                                            <th>{{ trans('lang.image') }}</th>
-                                            <th>{{ trans('lang.plan_name') }}</th>
-                                            <th>{{ trans('lang.price') }}</th>
-                                            <th>{{ trans('lang.payment_method') }}</th>
-                                            <th>{{ __('Zone') }}</th>
-                                            <th>{{ trans('lang.active_at') }}</th>
-                                            <th>{{ trans('lang.expire_at') }}</th>
-                                            <th>{{ trans('lang.actions') }}</th>
-                                        </tr>
+                                    <tr>
+                                        <th>{{ trans('lang.image') }}</th>
+                                        <th>{{ trans('lang.plan_name') }}</th>
+                                        <th>{{ trans('lang.price') }}</th>
+                                        <th>{{ trans('lang.payment_method') }}</th>
+                                        <th>{{ __('Zone') }}</th>
+                                        <th>{{ trans('lang.active_at') }}</th>
+                                        <th>{{ trans('lang.expire_at') }}</th>
+                                        <th>{{ trans('lang.actions') }}</th>
+                                    </tr>
                                     </thead>
                                     <tbody id="append_list1">
                                     </tbody>
@@ -55,9 +55,9 @@
                 var url = $(this).attr('data-url');
                 window.location.href = url;
             });
-            
+
             jQuery("#data-table_processing").show();
-            
+
             const table = $('#example24').DataTable({
                 pageLength: 10,
                 processing: true,
@@ -76,23 +76,66 @@
                         jQuery('#data-table_processing').hide();
                         if (xhr.status === 0) {
                             alert('Request timeout. Please check your connection and try again.');
-                            } else {
+                        } else {
                             alert('Error loading subscription history. Please refresh the page.');
-                            }
+                        }
                     }
                 },
                 order: [
                     [5, 'desc']
                 ],
                 columnDefs: [{
-                        targets: 5,
-                        type: 'date',
-                        render: function(data) {
-                            return data;
-                        }
+                    targets: 5,
+                    type: 'date',
+                    render: function(data) {
+                        return data;
+                    }
                 }, {
-                        orderable: false,
-                        targets: [0, 7]
+                    targets: 3, // Payment Method column
+                    render: function(data, type, row) {
+                        if (type === 'display' || type === 'type') {
+                            var paymentType = (data || '').toLowerCase();
+                            var image = '';
+                            var imagePath = '{{ asset("images/") }}';
+
+                            // Map payment types to image paths
+                            if (paymentType === 'stripe') {
+                                image = imagePath + 'stripe.png';
+                            } else if (paymentType === 'razorpay') {
+                                image = imagePath + 'razorpay.png';
+                            } else if (paymentType === 'paypal') {
+                                image = imagePath + 'paypal.png';
+                            } else if (paymentType === 'payfast') {
+                                image = imagePath + 'payfast.png';
+                            } else if (paymentType === 'paystack') {
+                                image = imagePath + 'paystack.png';
+                            } else if (paymentType === 'flutterwave') {
+                                image = imagePath + 'flutter_wave.png';
+                            } else if (paymentType === 'mercadopago') {
+                                image = imagePath + 'marcado_pago.png';
+                            } else if (paymentType === 'wallet') {
+                                image = imagePath + 'foodie_wallet.png';
+                            } else if (paymentType === 'paytm') {
+                                image = imagePath + 'paytm.png';
+                            } else if (paymentType === 'xendit') {
+                                image = imagePath + 'Xendit.png';
+                            } else if (paymentType === 'orangepay') {
+                                image = imagePath + 'orangeMoney.png';
+                            } else if (paymentType === 'midtrans') {
+                                image = imagePath + 'midtrans.png';
+                            }
+
+                            if (image) {
+                                return '<img style="width:100px" alt="' + paymentType + '" src="' + image + '">';
+                            }
+
+                            return data || '';
+                        }
+                        return data;
+                    }
+                }, {
+                    orderable: false,
+                    targets: [0, 7]
                 }],
                 "language": {
                     "zeroRecords": "{{ trans('lang.no_record_found') }}",
@@ -105,3 +148,5 @@
         });
     </script>
 @endsection
+
+
