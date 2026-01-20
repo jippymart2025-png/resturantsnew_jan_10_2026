@@ -32,8 +32,8 @@ class VendorProduct extends Model
         'addOnsPrice' => 'array',
         'photos' => 'array',
         'product_specification' => 'array',
-        'available_days' => 'array',
-        'available_timings' => 'array',
+        'available_days' => 'array', // Auto-converts array to JSON when saving, JSON to array when reading (like workingHours in Vendor model)
+        'available_timings' => 'array', // Auto-converts array to JSON when saving, JSON to array when reading (like workingHours in Vendor model)
     ];
 
     public function category()
