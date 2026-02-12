@@ -26,6 +26,7 @@ class MasterProduct extends Model
         'min_price' => 'float',
         'dis_price' => 'float',
         'photos' => 'array',
+        'options' => 'array',  // ← ADD THIS LINE
     ];
 
     public function category()

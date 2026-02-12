@@ -58,7 +58,15 @@ class SignupController extends Controller
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->where(function ($query) {
+                    return $query->where('role', 'vendor');
+                }),
+            ],
+
             'password' => 'required|string|min:6',
             'country_code' => ['required', Rule::in(array_keys($countries))],
             'phone' => 'required|string|max:25',

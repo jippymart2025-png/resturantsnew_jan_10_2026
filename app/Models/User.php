@@ -39,6 +39,7 @@ class User extends Authenticatable
         'active',
         'isDocumentVerify',
         'wallet_amount',
+        'active' => 'integer',
         'vType',
         'profilePictureURL',
         'vendorID',

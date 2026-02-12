@@ -79,26 +79,26 @@
                 </a>
             </li>
             <li>
-          <a class="waves-effect waves-dark" href="{{ route('my-subscriptions') }}">
-             <i class="mdi mdi-credit-card"></i>
-             <span class="hide-menu">{{ trans('lang.subscription_list') }}</span>
-           </a>
-            </li>
-
-
-            <li>
-                <a class="waves-effect waves-dark" href="{{ route('withdraw-method') }}">
-                    <i class="fa fa-credit-card"></i>
-                    <span class="hide-menu">{{ trans('lang.withdrawal_method') }}</span>
+                <a class="waves-effect waves-dark" href="{{ route('my-subscriptions') }}">
+                    <i class="mdi mdi-credit-card"></i>
+                    <span class="hide-menu">{{ trans('lang.subscription_list') }}</span>
                 </a>
             </li>
 
-            <li>
-                <a class="waves-effect waves-dark" href="{{ route('wallettransaction.index') }}">
-                    <i class="mdi mdi-swap-horizontal"></i>
-                    <span class="hide-menu">{{ trans('lang.wallet_transaction_plural') }}</span>
-                </a>
-            </li>
+
+            {{--            <li>--}}
+            {{--                <a class="waves-effect waves-dark" href="{{ route('withdraw-method') }}">--}}
+            {{--                    <i class="fa fa-credit-card"></i>--}}
+            {{--                    <span class="hide-menu">{{ trans('lang.withdrawal_method') }}</span>--}}
+            {{--                </a>--}}
+            {{--            </li>--}}
+
+            {{--            <li>--}}
+            {{--                <a class="waves-effect waves-dark" href="{{ route('wallettransaction.index') }}">--}}
+            {{--                    <i class="mdi mdi-swap-horizontal"></i>--}}
+            {{--                    <span class="hide-menu">{{ trans('lang.wallet_transaction_plural') }}</span>--}}
+            {{--                </a>--}}
+            {{--            </li>--}}
         @endif
     </ul>
 

@@ -1,7 +1,3 @@
-Gmail	Dev jippy <devjippy@gmail.com>
-foods/partial/form.blade.php
-Dev jippy <devjippy@gmail.com>	Fri, Jan 9, 2026 at 6:16 PM
-To: Dev jippy <devjippy@gmail.com>
 @php
     $editing = isset($food);
     $selectedCategory = old('categoryID', $food->categoryID ?? '');
@@ -84,14 +80,14 @@ To: Dev jippy <devjippy@gmail.com>
     // Prepare available_days and available_timings data
     $availableDays = old('available_days', []);
     $availableTimings = old('available_timings', []);
-    
+
     if (empty($availableDays) && isset($food) && $food->available_days) {
         $availableDays = is_array($food->available_days) ? $food->available_days : json_decode($food->available_days, true) ?? [];
     }
-    
+
     if (empty($availableTimings) && isset($food) && $food->available_timings) {
         $rawTimings = is_array($food->available_timings) ? $food->available_timings : json_decode($food->available_timings, true) ?? [];
-        
+
         // Convert from old format to new format if needed (backward compatibility)
         if (!empty($rawTimings) && isset($rawTimings[0]['day'])) {
             // Already in new format
@@ -115,10 +111,10 @@ To: Dev jippy <devjippy@gmail.com>
             }
         }
     }
-    
+
     $availableDays = is_array($availableDays) ? $availableDays : [];
     $availableTimings = is_array($availableTimings) ? $availableTimings : [];
-    
+
     // Create a helper array for easy day lookup
     $timingsByDay = [];
     foreach ($availableTimings as $timing) {
@@ -126,7 +122,7 @@ To: Dev jippy <devjippy@gmail.com>
             $timingsByDay[$timing['day']] = $timing['timeslot'];
         }
     }
-    
+
     $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 @endphp
 
@@ -147,9 +143,10 @@ To: Dev jippy <devjippy@gmail.com>
     $applyPercentage = $applyPercentage ?? 30;
     $planType = $planType ?? 'commission';
     $gstAgreed = $gstAgreed ?? false;
+    $subscriptionPlacePercentage = $subscriptionPlacePercentage ?? 0; // Subscription plan's place percentage for settlement calculation (EDIT page only)
     $merchantPrice = $food->merchant_price ?? '';
     $onlinePrice = $food->price ?? ''; // Always use stored price value
-    
+
     // Calculate price for display purposes only (shows what it would be if calculated)
     $priceCalculation = null;
     if ($merchantPrice && is_numeric($merchantPrice) && $merchantPrice > 0) {
@@ -211,418 +208,436 @@ To: Dev jippy <devjippy@gmail.com>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const hasSubscription = {{ $hasSubscription ? 'true' : 'false' }};
-    const applyPercentage = {{ $applyPercentage }};
-    const planType = '{{ $planType ?? 'commission' }}';
-    const gstAgreed = {{ $gstAgreed ? 'true' : 'false' }};
-    const gstPercentage = 5; // 5% GST
-    const merchantPriceInput = document.getElementById('merchant_price');
-    const onlinePriceInput = document.getElementById('online_price');
-    const discountPriceInput = document.getElementById('disPrice');
-    const errorMsgElement = document.getElementById('discount-price-error');
-    const calculationDisplay = document.getElementById('price-calculation-display');
-    
-    // Track if online price was manually edited (persist across merchant price changes)
-    let onlinePriceManuallyEdited = false;
-    // Store the original online price value on page load to detect manual edits
-    const originalOnlinePrice = {{ isset($onlinePrice) && $onlinePrice !== '' && is_numeric($onlinePrice) ? (float)$onlinePrice : 'null' }};
-    
-    // Helper function to check if online price is empty/zero
-    function isOnlinePriceEmpty() {
-        if (!onlinePriceInput) return true;
-        const value = onlinePriceInput.value;
-        // Check if value is empty string, null, undefined, or whitespace
-        if (!value || value.trim() === '') return true;
-        // Check if parsed value is 0 or NaN
-        const parsed = parseFloat(value);
-        return isNaN(parsed) || parsed === 0;
-    }
-    
-    // Function to calculate online price based on merchant price, subscription, and GST
-    // Only auto-calculates if online price is empty or 0 AND not manually edited (allows manual override)
-    function calculateOnlinePrice(forceRecalculate = false) {
-        if (merchantPriceInput && onlinePriceInput) {
-            const merchantPriceNum = parseFloat(merchantPriceInput.value) || 0;
-            const currentOnlinePrice = parseFloat(onlinePriceInput.value) || 0;
-            
-            // Only auto-calculate if:
-            // 1. Online price is empty/0 AND not manually edited, OR
-            // 2. forceRecalculate is true AND not manually edited
-            const shouldCalculate = merchantPriceNum > 0 && 
-                !onlinePriceManuallyEdited && 
-                (isOnlinePriceEmpty() || forceRecalculate);
-            
-            if (shouldCalculate) {
-                let onlinePrice = 0;
-                const isCommissionBased = !hasSubscription || planType === 'commission';
-                
-                if (isCommissionBased) {
-                    // Scenario 1: Commission-Based Model
-                    const commission = merchantPriceNum * (applyPercentage / 100);
-                    const priceBeforeGst = merchantPriceNum + commission;
-                    
-                    if (gstAgreed) {
-                        // Case 1: Merchant AGREED for GST - Platform absorbs GST
-                        onlinePrice = priceBeforeGst;
+    document.addEventListener('DOMContentLoaded', function() {
+        const hasSubscription = {{ $hasSubscription ? 'true' : 'false' }};
+        const applyPercentage = {{ $applyPercentage }};
+        const planType = '{{ $planType ?? 'commission' }}';
+        const gstAgreed = {{ $gstAgreed ? 'true' : 'false' }};
+        const gstPercentage = 5; // 5% GST
+        const subscriptionPlacePercentage = {{ $subscriptionPlacePercentage ?? 0 }}; // Subscription plan's place percentage for settlement calculation (EDIT page only)
+        const merchantPriceInput = document.getElementById('merchant_price');
+        const onlinePriceInput = document.getElementById('online_price');
+        const discountPriceInput = document.getElementById('disPrice');
+        const errorMsgElement = document.getElementById('discount-price-error');
+        const calculationDisplay = document.getElementById('price-calculation-display');
+
+        // Track if online price was manually edited (persist across merchant price changes)
+        let onlinePriceManuallyEdited = false;
+        // Store the original online price value on page load to detect manual edits
+        const originalOnlinePrice = {{ isset($onlinePrice) && $onlinePrice !== '' && is_numeric($onlinePrice) ? (float)$onlinePrice : 'null' }};
+
+        // Helper function to check if online price is empty/zero
+        function isOnlinePriceEmpty() {
+            if (!onlinePriceInput) return true;
+            const value = onlinePriceInput.value;
+            // Check if value is empty string, null, undefined, or whitespace
+            if (!value || value.trim() === '') return true;
+            // Check if parsed value is 0 or NaN
+            const parsed = parseFloat(value);
+            return isNaN(parsed) || parsed === 0;
+        }
+
+        // Function to calculate online price based on merchant price, subscription, and GST
+        // Only auto-calculates if online price is empty or 0 AND not manually edited (allows manual override)
+        function calculateOnlinePrice(forceRecalculate = false) {
+            if (merchantPriceInput && onlinePriceInput) {
+                const merchantPriceNum = parseFloat(merchantPriceInput.value) || 0;
+                const currentOnlinePrice = parseFloat(onlinePriceInput.value) || 0;
+
+                // Only auto-calculate if:
+                // 1. Online price is empty/0 AND not manually edited, OR
+                // 2. forceRecalculate is true AND not manually edited
+                const shouldCalculate = merchantPriceNum > 0 &&
+                    !onlinePriceManuallyEdited &&
+                    (isOnlinePriceEmpty() || forceRecalculate);
+
+                if (shouldCalculate) {
+                    let onlinePrice = 0;
+                    const isCommissionBased = !hasSubscription || planType === 'commission';
+
+                    if (isCommissionBased) {
+                        // Scenario 1: Commission-Based Model
+                        const commission = merchantPriceNum * (applyPercentage / 100);
+                        const priceBeforeGst = merchantPriceNum + commission;
+
+                        if (gstAgreed) {
+                            // Case 1: Merchant AGREED for GST - Platform absorbs GST
+                            onlinePrice = priceBeforeGst;
+                        } else {
+                            // Case 2: Merchant NOT AGREED for GST - GST is 5% of Merchant Price
+                            const gstAmount = merchantPriceNum * (gstPercentage / 100);
+                            onlinePrice = priceBeforeGst + gstAmount;
+                        }
                     } else {
-                        // Case 2: Merchant NOT AGREED for GST - GST is 5% of Merchant Price
-                        const gstAmount = merchantPriceNum * (gstPercentage / 100);
-                        onlinePrice = priceBeforeGst + gstAmount;
+                        // Scenario 2: Subscription-Based Model (No Commission in online price)
+                        if (gstAgreed) {
+                            // Case 1: Merchant AGREED for GST - Platform absorbs GST
+                            onlinePrice = merchantPriceNum;
+                        } else {
+                            // Case 2: Merchant NOT AGREED for GST - Add GST to customer price
+                            onlinePrice = merchantPriceNum + (merchantPriceNum * (gstPercentage / 100));
+                        }
+                    }
+
+                    onlinePriceInput.value = onlinePrice.toFixed(2);
+                    updateCalculationDisplay(merchantPriceNum, onlinePrice);
+                } else if (merchantPriceNum <= 0) {
+                    // Clear online price if merchant price is 0 or invalid (only if it was auto-calculated)
+                    if ((isOnlinePriceEmpty() || forceRecalculate) && !onlinePriceManuallyEdited) {
+                        onlinePriceInput.value = '';
+                    }
+                    updateCalculationDisplay(0, currentOnlinePrice);
+                } else {
+                    // Merchant price exists and online price has manual value - just update calculation display
+                    updateCalculationDisplay(merchantPriceNum, currentOnlinePrice);
+                }
+            }
+        }
+
+        // Function to update calculation display
+        // Function to update calculation display
+        function updateCalculationDisplay(merchantPrice, onlinePrice) {
+            // Find or create calculation display
+            let calcDisplay = document.getElementById('price-calculation-display');
+            if (!calcDisplay) {
+                // Find the price calculation section or create it
+                let calcSection = document.querySelector('#price-calculation-section');
+                if (!calcSection) {
+                    // Create the section after the discount price row
+                    const discountRow = document.querySelector('input[name="disPrice"]')?.closest('.row');
+                    if (discountRow) {
+                        const calcRow = document.createElement('div');
+                        calcRow.className = 'row';
+                        calcRow.id = 'price-calculation-section';
+                        calcRow.innerHTML = '<div class="col-md-12"><div class="alert alert-info" id="price-calculation-display"></div></div>';
+                        discountRow.parentNode.insertBefore(calcRow, discountRow.nextSibling);
+                        calcDisplay = document.getElementById('price-calculation-display');
                     }
                 } else {
-                    // Scenario 2: Subscription-Based Model (No Commission)
+                    calcDisplay = calcSection.querySelector('#price-calculation-display');
+                }
+            }
+
+            if (calcDisplay && merchantPrice > 0) {
+                // Build calculation text as plain text (for pre tag)
+                const isCommissionBased = !hasSubscription || planType === 'commission';
+                let calcTextPlain = 'Pricing Calculation:\n';
+                calcTextPlain += 'Merchant Price: ₹' + merchantPrice.toFixed(2) + '\n';
+
+                if (isCommissionBased) {
+                    const commission = merchantPrice * (applyPercentage / 100);
+                    const priceBeforeGst = merchantPrice + commission;
+                    calcTextPlain += 'Subscription Type: Commission (' + applyPercentage + '%)\n';
+                    calcTextPlain += 'Commission: ₹' + commission.toFixed(2) + ' (added to customer price)\n';
+
                     if (gstAgreed) {
-                        // Case 1: Merchant AGREED for GST - Platform absorbs GST
-                        onlinePrice = merchantPriceNum;
+                        calcTextPlain += 'GST Agreement: Yes\n';
+                        calcTextPlain += 'Online Price: ₹' + onlinePrice.toFixed(2) + '\n';
+                        calcTextPlain += 'GST (5%) absorbed by platform\n';
+                        // Calculate settlement: merchant_price - GST ONLY (no commission deduction for settlement)
+                        let settlementDeduction = merchantPrice * (gstPercentage / 100);
+                        calcTextPlain += 'Final Settlement to Merchant: ₹' + (merchantPrice - settlementDeduction).toFixed(2);
                     } else {
-                        // Case 2: Merchant NOT AGREED for GST - Add GST to customer price
-                        onlinePrice = merchantPriceNum + (merchantPriceNum * (gstPercentage / 100));
+                        calcTextPlain += 'GST Agreement: No\n';
+                        const gstAmount = merchantPrice * (gstPercentage / 100);
+                        calcTextPlain += 'GST (5%): +₹' + gstAmount.toFixed(2) + ' (added to customer price)\n';
+                        calcTextPlain += 'Online Price: ₹' + onlinePrice.toFixed(2) + '\n';
+                        // Calculate settlement: merchant_price FULL (no commission deduction for settlement)
+                        calcTextPlain += 'Final Settlement to Merchant: ₹' + merchantPrice.toFixed(2);
+                    }
+                } else {
+                    // Subscription-Based Model
+                    calcTextPlain += 'Subscription Type: Subscription (No Commission)\n';
+
+                    if (gstAgreed) {
+                        calcTextPlain += 'GST Agreement: Yes\n';
+                        calcTextPlain += 'Online Price: ₹' + onlinePrice.toFixed(2) + '\n';
+                        calcTextPlain += 'GST (5%) absorbed by platform\n';
+                        // Calculate settlement: merchant_price - GST - subscription_place_percentage
+                        let settlementDeduction = merchantPrice * (gstPercentage / 100);
+                        if (hasSubscription && subscriptionPlacePercentage > 0) {
+                            settlementDeduction += merchantPrice * (subscriptionPlacePercentage / 100);
+                            calcTextPlain += 'Subscription Plan Commission (' + subscriptionPlacePercentage + '%): -₹' + (merchantPrice * (subscriptionPlacePercentage / 100)).toFixed(2) + '\n';
+                        }
+                        calcTextPlain += 'Final Settlement to Merchant: ₹' + (merchantPrice - settlementDeduction).toFixed(2);
+                    } else {
+                        calcTextPlain += 'GST Agreement: No\n';
+                        calcTextPlain += 'GST (5%): +₹' + (merchantPrice * (gstPercentage / 100)).toFixed(2) + ' (added to customer price)\n';
+                        calcTextPlain += 'Online Price: ₹' + onlinePrice.toFixed(2) + '\n';
+                        // Calculate settlement: merchant_price - subscription_place_percentage (no GST deduction for settlement when GST not agreed)
+                        let settlementAmount = merchantPrice;
+                        if (hasSubscription && subscriptionPlacePercentage > 0) {
+                            settlementAmount = merchantPrice - (merchantPrice * (subscriptionPlacePercentage / 100));
+                            calcTextPlain += 'Subscription Plan Commission (' + subscriptionPlacePercentage + '%): -₹' + (merchantPrice * (subscriptionPlacePercentage / 100)).toFixed(2) + '\n';
+                        }
+                        calcTextPlain += 'Final Settlement to Merchant: ₹' + settlementAmount.toFixed(2);
                     }
                 }
-                
-                onlinePriceInput.value = onlinePrice.toFixed(2);
-                updateCalculationDisplay(merchantPriceNum, onlinePrice);
-            } else if (merchantPriceNum <= 0) {
-                // Clear online price if merchant price is 0 or invalid (only if it was auto-calculated)
-                if ((isOnlinePriceEmpty() || forceRecalculate) && !onlinePriceManuallyEdited) {
-                    onlinePriceInput.value = '';
+
+                // Update the display - replace pre tag if it exists, otherwise update innerHTML
+                const preTag = calcDisplay.querySelector('pre');
+                if (preTag) {
+                    // Replace the pre tag content with formatted text
+                    preTag.textContent = calcTextPlain;
+                } else {
+                    // If no pre tag, update innerHTML with HTML formatted text
+                    calcDisplay.innerHTML = '<strong>Pricing Calculation:</strong><br>' + calcTextPlain.replace(/\n/g, '<br>');
                 }
-                updateCalculationDisplay(0, currentOnlinePrice);
-            } else {
-                // Merchant price exists and online price has manual value - just update calculation display
+            } else if (calcDisplay && merchantPrice <= 0) {
+                // Show placeholder when no merchant price
+                const preTag = calcDisplay.querySelector('pre');
+                if (preTag) {
+                    preTag.textContent = 'Pricing Calculation:\nEnter merchant price to see calculation.';
+                } else {
+                    calcDisplay.innerHTML = '<strong>Pricing Calculation:</strong><br>Enter merchant price to see calculation.';
+                }
+            }
+        }
+
+        // Function to validate discount price
+        function validateDiscountPrice() {
+            if (discountPriceInput && onlinePriceInput) {
+                const discountPriceNum = parseFloat(discountPriceInput.value) || 0;
+                const onlinePriceNum = parseFloat(onlinePriceInput.value) || 0;
+
+                if (discountPriceNum > 0 && onlinePriceNum > 0 && discountPriceNum > onlinePriceNum) {
+                    // Get product name from the name input field
+                    const productNameInput = document.querySelector('input[name="name"]');
+                    const productName = productNameInput && productNameInput.value ? productNameInput.value.trim() : 'this product';
+
+                    const errorMsg = `Discount price cannot be greater than online price for product "${productName}".`;
+                    if (errorMsgElement) {
+                        errorMsgElement.textContent = errorMsg;
+                        errorMsgElement.style.display = 'block';
+                    }
+                    discountPriceInput.style.borderColor = '#dc3545';
+                    discountPriceInput.value = '';
+                    return false;
+                } else {
+                    if (errorMsgElement) {
+                        errorMsgElement.style.display = 'none';
+                    }
+                    discountPriceInput.style.borderColor = '';
+                    return true;
+                }
+            }
+            return true;
+        }
+
+        // Calculate online price when merchant price changes (only if online price is empty/0 AND not manually edited)
+        if (merchantPriceInput) {
+            merchantPriceInput.addEventListener('input', function() {
+                // Only auto-calculate if online price was not manually edited
+                if (!onlinePriceManuallyEdited) {
+                    calculateOnlinePrice(false); // Don't force, respect manual values
+                } else {
+                    // Just update calculation display with current values
+                    const merchantPriceNum = parseFloat(merchantPriceInput.value || 0);
+                    const onlinePriceNum = parseFloat(onlinePriceInput?.value || 0);
+                    if (merchantPriceNum > 0) {
+                        updateCalculationDisplay(merchantPriceNum, onlinePriceNum);
+                    }
+                }
+                if (discountPriceInput) {
+                    validateDiscountPrice();
+                }
+            });
+            merchantPriceInput.addEventListener('change', function() {
+                // Only auto-calculate if online price was not manually edited
+                if (!onlinePriceManuallyEdited) {
+                    calculateOnlinePrice(false); // Don't force, respect manual values
+                } else {
+                    // Just update calculation display with current values
+                    const merchantPriceNum = parseFloat(merchantPriceInput.value || 0);
+                    const onlinePriceNum = parseFloat(onlinePriceInput?.value || 0);
+                    if (merchantPriceNum > 0) {
+                        updateCalculationDisplay(merchantPriceNum, onlinePriceNum);
+                    }
+                }
+                if (discountPriceInput) {
+                    validateDiscountPrice();
+                }
+            });
+        }
+
+        // Track if online price was manually edited
+        if (onlinePriceInput) {
+            // Detect if user manually edits online_price (different from original or auto-calculated value)
+            onlinePriceInput.addEventListener('input', function() {
+                const currentValue = parseFloat(onlinePriceInput.value || 0);
+                const merchantPriceNum = parseFloat(merchantPriceInput?.value || 0);
+
+                // Mark as manually edited if:
+                // 1. User is typing/changing the value, OR
+                // 2. The value differs from what would be auto-calculated
+                if (merchantPriceNum > 0) {
+                    // Calculate what the auto-calculated value would be
+                    let calculatedPrice = 0;
+                    const isCommissionBased = !hasSubscription || planType === 'commission';
+
+                    if (isCommissionBased) {
+                        const commission = merchantPriceNum * (applyPercentage / 100);
+                        const priceBeforeGst = merchantPriceNum + commission;
+                        if (gstAgreed) {
+                            calculatedPrice = priceBeforeGst;
+                        } else {
+                            const gstAmount = merchantPriceNum * (gstPercentage / 100);
+                            calculatedPrice = priceBeforeGst + gstAmount;
+                        }
+                    } else {
+                        if (gstAgreed) {
+                            calculatedPrice = merchantPriceNum;
+                        } else {
+                            calculatedPrice = merchantPriceNum + (merchantPriceNum * (gstPercentage / 100));
+                        }
+                    }
+
+                    // If current value differs from calculated value, mark as manually edited
+                    if (Math.abs(currentValue - calculatedPrice) > 0.01) {
+                        onlinePriceManuallyEdited = true;
+                    }
+                } else {
+                    // If merchant price is 0 but online price has value, it's manually edited
+                    if (currentValue > 0) {
+                        onlinePriceManuallyEdited = true;
+                    }
+                }
+
+                // Update calculation display when manually edited
+                if (merchantPriceNum > 0) {
+                    updateCalculationDisplay(merchantPriceNum, currentValue);
+                }
+                if (discountPriceInput) {
+                    validateDiscountPrice();
+                }
+            });
+
+            // Also track on blur to catch paste events
+            onlinePriceInput.addEventListener('blur', function() {
+                const currentValue = parseFloat(onlinePriceInput.value || 0);
+                const merchantPriceNum = parseFloat(merchantPriceInput?.value || 0);
+
+                if (merchantPriceNum > 0 && currentValue > 0) {
+                    // Calculate what the auto-calculated value would be
+                    let calculatedPrice = 0;
+                    const isCommissionBased = !hasSubscription || planType === 'commission';
+
+                    if (isCommissionBased) {
+                        const commission = merchantPriceNum * (applyPercentage / 100);
+                        const priceBeforeGst = merchantPriceNum + commission;
+                        if (gstAgreed) {
+                            calculatedPrice = priceBeforeGst;
+                        } else {
+                            const gstAmount = merchantPriceNum * (gstPercentage / 100);
+                            calculatedPrice = priceBeforeGst + gstAmount;
+                        }
+                    } else {
+                        if (gstAgreed) {
+                            calculatedPrice = merchantPriceNum;
+                        } else {
+                            calculatedPrice = merchantPriceNum + (merchantPriceNum * (gstPercentage / 100));
+                        }
+                    }
+
+                    // If current value differs from calculated value, mark as manually edited
+                    if (Math.abs(currentValue - calculatedPrice) > 0.01) {
+                        onlinePriceManuallyEdited = true;
+                    }
+                }
+            });
+        }
+
+        // Initial calculation if merchant price exists and online price is empty/0
+        // This ensures auto-calculation works in edit mode just like create mode
+        if (merchantPriceInput && merchantPriceInput.value) {
+            const merchantPriceNum = parseFloat(merchantPriceInput.value) || 0;
+            if (merchantPriceNum > 0 && isOnlinePriceEmpty()) {
+                // Auto-calculate if merchant price exists and online price is empty/0 (same as create mode)
+                calculateOnlinePrice(true); // Force calculation on initial load if empty
+            } else if (merchantPriceNum > 0 && !isOnlinePriceEmpty()) {
+                // Online price has a value - check if it matches auto-calculated value
+                const currentOnlinePrice = parseFloat(onlinePriceInput?.value || 0);
+                // Calculate what the auto-calculated value would be
+                let calculatedPrice = 0;
+                const isCommissionBased = !hasSubscription || planType === 'commission';
+
+                if (isCommissionBased) {
+                    const commission = merchantPriceNum * (applyPercentage / 100);
+                    const priceBeforeGst = merchantPriceNum + commission;
+                    if (gstAgreed) {
+                        calculatedPrice = priceBeforeGst;
+                    } else {
+                        const gstAmount = merchantPriceNum * (gstPercentage / 100);
+                        calculatedPrice = priceBeforeGst + gstAmount;
+                    }
+                } else {
+                    if (gstAgreed) {
+                        calculatedPrice = merchantPriceNum;
+                    } else {
+                        calculatedPrice = merchantPriceNum + (merchantPriceNum * (gstPercentage / 100));
+                    }
+                }
+
+                // If stored value differs from calculated value, it was manually edited
+                if (Math.abs(currentOnlinePrice - calculatedPrice) > 0.01) {
+                    onlinePriceManuallyEdited = true;
+                }
+
+                // Just update calculation display with existing values
                 updateCalculationDisplay(merchantPriceNum, currentOnlinePrice);
             }
         }
-    }
-    
-    // Function to update calculation display
-    function updateCalculationDisplay(merchantPrice, onlinePrice) {
-        // Find or create calculation display
-        let calcDisplay = document.getElementById('price-calculation-display');
-        if (!calcDisplay) {
-            // Find the price calculation section or create it
-            let calcSection = document.querySelector('#price-calculation-section');
-            if (!calcSection) {
-                // Create the section after the discount price row
-                const discountRow = document.querySelector('input[name="disPrice"]')?.closest('.row');
-                if (discountRow) {
-                    const calcRow = document.createElement('div');
-                    calcRow.className = 'row';
-                    calcRow.id = 'price-calculation-section';
-                    calcRow.innerHTML = '<div class="col-md-12"><div class="alert alert-info" id="price-calculation-display"></div></div>';
-                    discountRow.parentNode.insertBefore(calcRow, discountRow.nextSibling);
-                    calcDisplay = document.getElementById('price-calculation-display');
-                }
-            } else {
-                calcDisplay = calcSection.querySelector('#price-calculation-display');
-            }
-        }
-        
-        if (calcDisplay && merchantPrice > 0) {
-            // Build calculation text as plain text (for pre tag)
-            const isCommissionBased = !hasSubscription || planType === 'commission';
-            let calcTextPlain = 'Pricing Calculation:\n';
-            calcTextPlain += 'Merchant Price: ₹' + merchantPrice.toFixed(2) + '\n';
-            
-            if (isCommissionBased) {
-                const commission = merchantPrice * (applyPercentage / 100);
-                const priceBeforeGst = merchantPrice + commission;
-                calcTextPlain += 'Subscription Type: Commission (' + applyPercentage + '%)\n';
-                calcTextPlain += 'Commission: ₹' + commission.toFixed(2) + '\n';
-                
-                if (gstAgreed) {
-                    calcTextPlain += 'GST Agreement: Yes\n';
-                    calcTextPlain += 'Online Price: ₹' + onlinePrice.toFixed(2) + '\n';
-                    calcTextPlain += 'GST (5%) absorbed by platform\n';
-                    calcTextPlain += 'Final Settlement to Merchant: ₹' + (merchantPrice - (merchantPrice * 0.05)).toFixed(2);
-                } else {
-                    calcTextPlain += 'GST Agreement: No\n';
-                    const gstAmount = merchantPrice * (gstPercentage / 100);
-                    calcTextPlain += 'GST (5%): +₹' + gstAmount.toFixed(2) + ' (added to customer price)\n';
-                    calcTextPlain += 'Online Price: ₹' + onlinePrice.toFixed(2) + '\n';
-                    calcTextPlain += 'Final Settlement to Merchant: ₹' + merchantPrice.toFixed(2);
-                }
-            } else {
-                calcTextPlain += 'Subscription Type: Subscription (No Commission)\n';
-                
-                if (gstAgreed) {
-                    calcTextPlain += 'GST Agreement: Yes\n';
-                    calcTextPlain += 'Online Price: ₹' + onlinePrice.toFixed(2) + '\n';
-                    calcTextPlain += 'GST (5%) absorbed by platform\n';
-                    calcTextPlain += 'Final Settlement to Merchant: ₹' + (merchantPrice - (merchantPrice * 0.05)).toFixed(2);
-                } else {
-                    calcTextPlain += 'GST Agreement: No\n';
-                    calcTextPlain += 'GST (5%): +₹' + (merchantPrice * (gstPercentage / 100)).toFixed(2) + ' (added to customer price)\n';
-                    calcTextPlain += 'Online Price: ₹' + onlinePrice.toFixed(2) + '\n';
-                    calcTextPlain += 'Final Settlement to Merchant: ₹' + merchantPrice.toFixed(2);
-                }
-            }
-            
-            // Update the display - replace pre tag if it exists, otherwise update innerHTML
-            const preTag = calcDisplay.querySelector('pre');
-            if (preTag) {
-                // Replace the pre tag content with formatted text
-                preTag.textContent = calcTextPlain;
-            } else {
-                // If no pre tag, update innerHTML with HTML formatted text
-                calcDisplay.innerHTML = '<strong>Pricing Calculation:</strong><br>' + calcTextPlain.replace(/\n/g, '<br>');
-            }
-        } else if (calcDisplay && merchantPrice <= 0) {
-            // Show placeholder when no merchant price
-            const preTag = calcDisplay.querySelector('pre');
-            if (preTag) {
-                preTag.textContent = 'Pricing Calculation:\nEnter merchant price to see calculation.';
-            } else {
-                calcDisplay.innerHTML = '<strong>Pricing Calculation:</strong><br>Enter merchant price to see calculation.';
-            }
-        }
-    }
-    
-    // Function to validate discount price
-    function validateDiscountPrice() {
-        if (discountPriceInput && onlinePriceInput) {
-            const discountPriceNum = parseFloat(discountPriceInput.value) || 0;
-            const onlinePriceNum = parseFloat(onlinePriceInput.value) || 0;
-            
-            if (discountPriceNum > 0 && onlinePriceNum > 0 && discountPriceNum > onlinePriceNum) {
-                // Get product name from the name input field
-                const productNameInput = document.querySelector('input[name="name"]');
-                const productName = productNameInput && productNameInput.value ? productNameInput.value.trim() : 'this product';
-                
-                const errorMsg = `Discount price cannot be greater than online price for product "${productName}".`;
-                if (errorMsgElement) {
-                    errorMsgElement.textContent = errorMsg;
-                    errorMsgElement.style.display = 'block';
-                }
-                discountPriceInput.style.borderColor = '#dc3545';
-                discountPriceInput.value = '';
-                return false;
-            } else {
-                if (errorMsgElement) {
-                    errorMsgElement.style.display = 'none';
-                }
-                discountPriceInput.style.borderColor = '';
-                return true;
-            }
-        }
-        return true;
-    }
-    
-    // Calculate online price when merchant price changes (only if online price is empty/0 AND not manually edited)
-    if (merchantPriceInput) {
-        merchantPriceInput.addEventListener('input', function() {
-            // Only auto-calculate if online price was not manually edited
-            if (!onlinePriceManuallyEdited) {
-                calculateOnlinePrice(false); // Don't force, respect manual values
-            } else {
-                // Just update calculation display with current values
-                const merchantPriceNum = parseFloat(merchantPriceInput.value || 0);
-                const onlinePriceNum = parseFloat(onlinePriceInput?.value || 0);
-                if (merchantPriceNum > 0) {
-                    updateCalculationDisplay(merchantPriceNum, onlinePriceNum);
-                }
-            }
-            if (discountPriceInput) {
-                validateDiscountPrice();
-            }
-        });
-        merchantPriceInput.addEventListener('change', function() {
-            // Only auto-calculate if online price was not manually edited
-            if (!onlinePriceManuallyEdited) {
-                calculateOnlinePrice(false); // Don't force, respect manual values
-            } else {
-                // Just update calculation display with current values
-                const merchantPriceNum = parseFloat(merchantPriceInput.value || 0);
-                const onlinePriceNum = parseFloat(onlinePriceInput?.value || 0);
-                if (merchantPriceNum > 0) {
-                    updateCalculationDisplay(merchantPriceNum, onlinePriceNum);
-                }
-            }
-            if (discountPriceInput) {
-                validateDiscountPrice();
-            }
-        });
-    }
-    
-    // Track if online price was manually edited
-    if (onlinePriceInput) {
-        // Detect if user manually edits online_price (different from original or auto-calculated value)
-        onlinePriceInput.addEventListener('input', function() {
-            const currentValue = parseFloat(onlinePriceInput.value || 0);
-            const merchantPriceNum = parseFloat(merchantPriceInput?.value || 0);
-            
-            // Mark as manually edited if:
-            // 1. User is typing/changing the value, OR
-            // 2. The value differs from what would be auto-calculated
-            if (merchantPriceNum > 0) {
-                // Calculate what the auto-calculated value would be
-                let calculatedPrice = 0;
-                const isCommissionBased = !hasSubscription || planType === 'commission';
-                
-                if (isCommissionBased) {
-                    const commission = merchantPriceNum * (applyPercentage / 100);
-                    const priceBeforeGst = merchantPriceNum + commission;
-                    if (gstAgreed) {
-                        calculatedPrice = priceBeforeGst;
-                    } else {
-                        const gstAmount = merchantPriceNum * (gstPercentage / 100);
-                        calculatedPrice = priceBeforeGst + gstAmount;
-                    }
-                } else {
-                    if (gstAgreed) {
-                        calculatedPrice = merchantPriceNum;
-                    } else {
-                        calculatedPrice = merchantPriceNum + (merchantPriceNum * (gstPercentage / 100));
-                    }
-                }
-                
-                // If current value differs from calculated value, mark as manually edited
-                if (Math.abs(currentValue - calculatedPrice) > 0.01) {
-                    onlinePriceManuallyEdited = true;
-                }
-            } else {
-                // If merchant price is 0 but online price has value, it's manually edited
-                if (currentValue > 0) {
-                    onlinePriceManuallyEdited = true;
-                }
-            }
-            
-            // Update calculation display when manually edited
-            if (merchantPriceNum > 0) {
-                updateCalculationDisplay(merchantPriceNum, currentValue);
-            }
-            if (discountPriceInput) {
-                validateDiscountPrice();
-            }
-        });
-        
-        // Also track on blur to catch paste events
-        onlinePriceInput.addEventListener('blur', function() {
-            const currentValue = parseFloat(onlinePriceInput.value || 0);
-            const merchantPriceNum = parseFloat(merchantPriceInput?.value || 0);
-            
-            if (merchantPriceNum > 0 && currentValue > 0) {
-                // Calculate what the auto-calculated value would be
-                let calculatedPrice = 0;
-                const isCommissionBased = !hasSubscription || planType === 'commission';
-                
-                if (isCommissionBased) {
-                    const commission = merchantPriceNum * (applyPercentage / 100);
-                    const priceBeforeGst = merchantPriceNum + commission;
-                    if (gstAgreed) {
-                        calculatedPrice = priceBeforeGst;
-                    } else {
-                        const gstAmount = merchantPriceNum * (gstPercentage / 100);
-                        calculatedPrice = priceBeforeGst + gstAmount;
-                    }
-                } else {
-                    if (gstAgreed) {
-                        calculatedPrice = merchantPriceNum;
-                    } else {
-                        calculatedPrice = merchantPriceNum + (merchantPriceNum * (gstPercentage / 100));
-                    }
-                }
-                
-                // If current value differs from calculated value, mark as manually edited
-                if (Math.abs(currentValue - calculatedPrice) > 0.01) {
-                    onlinePriceManuallyEdited = true;
-                }
-            }
-        });
-    }
-    
-    // Initial calculation if merchant price exists and online price is empty/0
-    // This ensures auto-calculation works in edit mode just like create mode
-    if (merchantPriceInput && merchantPriceInput.value) {
-        const merchantPriceNum = parseFloat(merchantPriceInput.value) || 0;
-        if (merchantPriceNum > 0 && isOnlinePriceEmpty()) {
-            // Auto-calculate if merchant price exists and online price is empty/0 (same as create mode)
-            calculateOnlinePrice(true); // Force calculation on initial load if empty
-        } else if (merchantPriceNum > 0 && !isOnlinePriceEmpty()) {
-            // Online price has a value - check if it matches auto-calculated value
-            const currentOnlinePrice = parseFloat(onlinePriceInput?.value || 0);
-            // Calculate what the auto-calculated value would be
-            let calculatedPrice = 0;
-            const isCommissionBased = !hasSubscription || planType === 'commission';
-            
-            if (isCommissionBased) {
-                const commission = merchantPriceNum * (applyPercentage / 100);
-                const priceBeforeGst = merchantPriceNum + commission;
-                if (gstAgreed) {
-                    calculatedPrice = priceBeforeGst;
-                } else {
-                    const gstAmount = merchantPriceNum * (gstPercentage / 100);
-                    calculatedPrice = priceBeforeGst + gstAmount;
-                }
-            } else {
-                if (gstAgreed) {
-                    calculatedPrice = merchantPriceNum;
-                } else {
-                    calculatedPrice = merchantPriceNum + (merchantPriceNum * (gstPercentage / 100));
-                }
-            }
-            
-            // If stored value differs from calculated value, it was manually edited
-            if (Math.abs(currentOnlinePrice - calculatedPrice) > 0.01) {
-                onlinePriceManuallyEdited = true;
-            }
-            
-            // Just update calculation display with existing values
-            updateCalculationDisplay(merchantPriceNum, currentOnlinePrice);
-        }
-    }
-    
-    // Validate discount price when it changes
-    if (discountPriceInput) {
-        discountPriceInput.addEventListener('blur', function() {
-            if (!validateDiscountPrice()) {
-                // Show alert if validation fails
-                const productNameInput = document.querySelector('input[name="name"]');
-                const productName = productNameInput && productNameInput.value ? productNameInput.value.trim() : 'this product';
-                alert(`Discount price cannot be greater than online price for product "${productName}".`);
-            }
-        });
-        discountPriceInput.addEventListener('change', function() {
-            if (!validateDiscountPrice()) {
-                // Show alert if validation fails
-                const productNameInput = document.querySelector('input[name="name"]');
-                const productName = productNameInput && productNameInput.value ? productNameInput.value.trim() : 'this product';
-                alert(`Discount price cannot be greater than online price for product "${productName}".`);
-            }
-        });
-    }
-    
-    // Validate discount price when online price changes manually
-    if (onlinePriceInput) {
-        onlinePriceInput.addEventListener('change', function() {
-            if (discountPriceInput) {
+
+        // Validate discount price when it changes
+        if (discountPriceInput) {
+            discountPriceInput.addEventListener('blur', function() {
                 if (!validateDiscountPrice()) {
                     // Show alert if validation fails
                     const productNameInput = document.querySelector('input[name="name"]');
                     const productName = productNameInput && productNameInput.value ? productNameInput.value.trim() : 'this product';
                     alert(`Discount price cannot be greater than online price for product "${productName}".`);
                 }
-            }
-        });
-    }
-    
-    // Validate before form submission
-    const foodForm = document.querySelector('form[method="POST"]');
-    if (foodForm) {
-        foodForm.addEventListener('submit', function(e) {
-            if (discountPriceInput && onlinePriceInput) {
+            });
+            discountPriceInput.addEventListener('change', function() {
                 if (!validateDiscountPrice()) {
-                    e.preventDefault();
+                    // Show alert if validation fails
                     const productNameInput = document.querySelector('input[name="name"]');
                     const productName = productNameInput && productNameInput.value ? productNameInput.value.trim() : 'this product';
                     alert(`Discount price cannot be greater than online price for product "${productName}".`);
-                    return false;
                 }
-            }
-        });
-    }
-});
+            });
+        }
+
+        // Validate discount price when online price changes manually
+        if (onlinePriceInput) {
+            onlinePriceInput.addEventListener('change', function() {
+                if (discountPriceInput) {
+                    if (!validateDiscountPrice()) {
+                        // Show alert if validation fails
+                        const productNameInput = document.querySelector('input[name="name"]');
+                        const productName = productNameInput && productNameInput.value ? productNameInput.value.trim() : 'this product';
+                        alert(`Discount price cannot be greater than online price for product "${productName}".`);
+                    }
+                }
+            });
+        }
+
+        // Validate before form submission
+        const foodForm = document.querySelector('form[method="POST"]');
+        if (foodForm) {
+            foodForm.addEventListener('submit', function(e) {
+                if (discountPriceInput && onlinePriceInput) {
+                    if (!validateDiscountPrice()) {
+                        e.preventDefault();
+                        const productNameInput = document.querySelector('input[name="name"]');
+                        const productName = productNameInput && productNameInput.value ? productNameInput.value.trim() : 'this product';
+                        alert(`Discount price cannot be greater than online price for product "${productName}".`);
+                        return false;
+                    }
+                }
+            });
+        }
+    });
 </script>
 
 <div class="row">
@@ -700,7 +715,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </button>
     </div>
     <small class="form-text text-muted mb-3">Set specific days and time slots when this product is available.</small>
-    
+
     <div id="availability-section" style="display: none;">
         <div class="mb-3">
             <label class="control-label font-weight-bold">Select Available Days:</label>
@@ -708,9 +723,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 @foreach ($daysOfWeek as $day)
                     <div class="col-md-3 mb-2">
                         <div class="form-check">
-                            <input class="form-check-input day-checkbox" type="checkbox" 
-                                   id="day_{{ $day }}" 
-                                   name="available_days[]" 
+                            <input class="form-check-input day-checkbox" type="checkbox"
+                                   id="day_{{ $day }}"
+                                   name="available_days[]"
                                    value="{{ $day }}"
                                    {{ in_array($day, $availableDays) ? 'checked' : '' }}
                                    data-day="{{ $day }}">
@@ -722,7 +737,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 @endforeach
             </div>
         </div>
-        
+
         <div id="timings-container" class="mt-3">
             @foreach ($daysOfWeek as $day)
                 @php
@@ -739,16 +754,16 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="row align-items-end mb-2 timing-row" data-day="{{ $day }}" data-index="{{ $index }}">
                                 <div class="col-md-4">
                                     <label class="form-label small">From</label>
-                                    <input type="time" 
-                                           name="available_timings[{{ $day }}][{{ $index }}][from]" 
-                                           class="form-control form-control-sm time-slot-from" 
+                                    <input type="time"
+                                           name="available_timings[{{ $day }}][{{ $index }}][from]"
+                                           class="form-control form-control-sm time-slot-from"
                                            value="{{ $slot['from'] ?? '' }}">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small">To</label>
-                                    <input type="time" 
-                                           name="available_timings[{{ $day }}][{{ $index }}][to]" 
-                                           class="form-control form-control-sm time-slot-to" 
+                                    <input type="time"
+                                           name="available_timings[{{ $day }}][{{ $index }}][to]"
+                                           class="form-control form-control-sm time-slot-to"
                                            value="{{ $slot['to'] ?? '' }}">
                                 </div>
                                 <div class="col-md-4 d-flex align-items-end">
@@ -762,14 +777,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <div class="row align-items-end mb-2 timing-row" data-day="{{ $day }}" data-index="0">
                                     <div class="col-md-4">
                                         <label class="form-label small">From</label>
-                                        <input type="time" 
-                                               name="available_timings[{{ $day }}][0][from]" 
+                                        <input type="time"
+                                               name="available_timings[{{ $day }}][0][from]"
                                                class="form-control form-control-sm time-slot-from">
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label small">To</label>
-                                        <input type="time" 
-                                               name="available_timings[{{ $day }}][0][to]" 
+                                        <input type="time"
+                                               name="available_timings[{{ $day }}][0][to]"
                                                class="form-control form-control-sm time-slot-to">
                                     </div>
                                     <div class="col-md-4 d-flex align-items-end">
@@ -788,7 +803,7 @@ document.addEventListener('DOMContentLoaded', function() {
             @endforeach
         </div>
     </div>
-    
+
     <div id="availability-summary" class="mt-3">
         @if (!empty($availableDays))
             <div class="alert alert-info">
@@ -799,7 +814,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         $daySlots = is_array($daySlots) ? $daySlots : [];
                     @endphp
                     <div class="mt-1">
-                        <strong>{{ $day }}:</strong> 
+                        <strong>{{ $day }}:</strong>
                         @if (!empty($daySlots))
                             @foreach ($daySlots as $slot)
                                 {{ ($slot['from'] ?? '') . ' – ' . ($slot['to'] ?? '') }}@if(!$loop->last), @endif
@@ -937,6 +952,50 @@ document.addEventListener('DOMContentLoaded', function() {
         @endforelse
     </div>
 </div>
+{{-- ✅ EDITABLE PRODUCT OPTIONS --}}
+@if($editing && !empty($masterOptions))
+    <hr>
+    <div class="mt-4 border p-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="btn btn-primary mb-0">
+                <i class="fa fa-list mr-1"></i> Product Options
+            </label>
+
+            <button type="button"
+                    class="btn btn-sm btn-outline-primary"
+                    onclick="openEditOptionsModal()">
+                Manage Options
+            </button>
+        </div>
+
+        <small class="form-text text-muted mb-2">
+            Select applicable options for this food item.
+        </small>
+
+        {{-- Hidden field that actually gets saved --}}
+        + <input type="hidden" name="options_json" id="options_json"
+                 value='@json($food->options ?? [])'>
+
+        {{-- Preview selected options --}}
+        <div id="options-preview">
+            @if(!empty($food->options))
+                <ul class="mb-0">
+                    @foreach($food->options as $opt)
+                        <li>
+                            <strong>{{ $opt['title'] ?? '' }}</strong>
+                            {{ $opt['subtitle'] ? ' – '.$opt['subtitle'] : '' }}
+                            {{ isset($opt['price']) ? '(₹'.$opt['price'].')' : '' }}
+                        </li>
+                    @endforeach
+                </ul>
+            @else
+                <span class="text-muted">No options selected</span>
+            @endif
+        </div>
+    </div>
+@endif
+
+
 
 <div class="text-center mt-4">
     <button type="submit" class="btn btn-primary px-5">

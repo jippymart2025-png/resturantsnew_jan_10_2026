@@ -94,7 +94,10 @@ class LoginController extends Controller
             'password.required' => 'Password is required.',
         ]);
 
-        $user = User::where('email', $credentials['email'])->first();
+        $user = User::where('email', $credentials['email'])
+            ->where('role', 'vendor')
+            ->first();
+
 
         if (!$user || !Hash::check($credentials['password'], $user->password)) {
             return $this->sendFailedLoginResponse($request);
