@@ -74,16 +74,21 @@ class OrderController extends Controller
         ]);
 
         $order->status = $data['status'];
-        if ($data['estimated_time'] !== null) {
-            $order->estimatedTimeToPrepare = $data['estimated_time'];
+        if (!empty($data['estimated_time'])) {
+            $order->estimatedTimeToPrepare = (int) $data['estimated_time'];
+        } else {
+            // Fallback if vendor didn't send anything
+            $order->estimatedTimeToPrepare = 20;
         }
+
+
         if (array_key_exists('notes', $data)) {
             $order->notes = $data['notes'];
         }
         $order->save();
 
         // Clear dashboard cache when order is updated
-        \Illuminate\Support\Facades\Cache::forget('dashboard_' . $vendor->id);
+        \Illuminate\Support\Facades\Cache::flush(); // safest for now
 
         return redirect()->route('orders.edit', $order->id)->with('success', 'Order updated successfully.');
     }
@@ -112,6 +117,45 @@ class OrderController extends Controller
         return back()->with('success', 'Selected orders deleted successfully.');
     }
 
+    public function orderCounts(string $vendorId): array
+
+    {
+        $rows = RestaurantOrder::where('vendorID', $vendorId)
+            ->select(
+                DB::raw('LOWER(TRIM(status)) as status'),
+                DB::raw('COUNT(*) as count')
+            )
+            ->groupBy(DB::raw('LOWER(TRIM(status))'))
+            ->pluck('count', 'status')
+            ->toArray();
+
+        $placed = $rows['order placed'] ?? 0;
+
+        $accepted =
+            ($rows['order accepted'] ?? 0) +
+            ($rows['driver accepted'] ?? 0);
+
+        $rejected =
+            ($rows['order rejected'] ?? 0) +
+            ($rows['driver rejected'] ?? 0);
+
+        $cancelled = $rows['order cancelled'] ?? 0;
+
+        $completed = $rows['order completed'] ?? 0;
+
+        return [
+            'placed'    => $placed,
+            'accepted'  => $accepted,
+            'rejected'  => $rejected,
+            'cancelled' => $cancelled,
+            'completed' => $completed,
+            'all'       => $placed + $accepted + $rejected + $cancelled + $completed,
+        ];
+    }
+
+
+
+
     public function data(Request $request)
     {
         $vendor = $this->currentVendor();
@@ -136,16 +180,17 @@ class OrderController extends Controller
         $recordsFiltered = (clone $query)->count();
 
         $columns = [
-            1 => 'id',
-            2 => 'author',
-            3 => 'driver',
-            4 => 'status',
-            5 => 'createdAt',
-            6 => 'createdAt',
-            7 => 'createdAt',
-        ];
 
-        $orderColumnIndex = (int) $request->input('order.0.column', 5);
+            0 => 'id',        // Order ID
+            1 => 'author',    // Customer
+            2 => 'driver',    // Driver
+            3 => 'status',    // Status
+            4 => 'ToPay',     // Amount
+            5 => 'takeAway',  // Order Type
+            6 => 'createdAt', // ✅ Order Date (THIS IS WHAT YOU SORT)
+
+        ];
+        $orderColumnIndex = (int) $request->input('order.0.column', 7);
         $orderColumn = $columns[$orderColumnIndex] ?? 'createdAt';
         $orderDir = strtolower($request->input('order.0.dir', 'desc')) === 'asc' ? 'asc' : 'desc';
 
@@ -155,10 +200,25 @@ class OrderController extends Controller
             $length = 10;
         }
 
-        $orders = $query->orderBy($orderColumn, $orderDir)
+        if ($orderColumn === 'createdAt') {
+            $query->orderByRaw(
+                "CASE
+            WHEN createdAt LIKE '%T%'
+                THEN STR_TO_DATE(createdAt, '%Y-%m-%dT%H:%i:%s')
+            ELSE STR_TO_DATE(createdAt, '%Y-%m-%d %H:%i:%s')
+         END " . strtoupper($orderDir)
+            );
+        }
+
+        else {
+            $query->orderBy($orderColumn, $orderDir);
+        }
+
+        $orders = $query
             ->skip($start)
             ->take($length)
             ->get();
+
 
         $currency = $this->currencyMeta();
 
@@ -169,9 +229,14 @@ class OrderController extends Controller
                 'customer' => e($this->customerName($order)),
                 'driver' => e($this->driverName($order)),
                 'status' => $this->renderStatusBadge($order->status),
-                'amount' => $this->formatCurrency($this->calculateSubtotal($order), $currency),
+                'amount' => $this->formatCurrency($this->calculateFinalTotal($order), $currency),
+
                 'type' => $this->formatOrderType($order->takeAway),
-                'date' => $this->formatDate($order->createdAt),
+                'date' => ($date = $this->parseDate($order->createdAt))
+                    ? $date->format('d M Y h:i A')
+                    : '—',
+
+
                 'actions' => $this->renderActions($order),
             ];
         });
@@ -274,11 +339,15 @@ class OrderController extends Controller
 
     protected function renderOrderTable(string $view, array $statuses = [])
     {
+        $vendor = $this->currentVendor();
+
         return view($view, [
             'statusFilter' => $statuses,
             'statusQuery' => implode(',', $statuses),
+            'orderCounts' => $this->orderCounts($vendor->id),
         ]);
     }
+
 
     protected function renderCheckbox(RestaurantOrder $order): string
     {
@@ -318,69 +387,58 @@ class OrderController extends Controller
         </span>';
     }
 
-    protected function calculateSubtotal(RestaurantOrder $order): float
+    public function calculateFinalTotal(RestaurantOrder $order): float
     {
-        // First try to use toPayAmount or ToPay if available (final total)
-        // These fields contain the complete order total including all charges
-        if (!empty($order->toPayAmount) && (float) $order->toPayAmount > 0) {
-            return (float) $order->toPayAmount;
-        }
-        if (!empty($order->ToPay) && (float) $order->ToPay > 0) {
-            return (float) $order->ToPay;
-        }
-
-        // Otherwise calculate from products
         $products = $this->decodeJson($order->products);
-        $subtotal = 0;
-
-        if (!empty($products) && is_array($products)) {
-            foreach ($products as $product) {
-                if (!is_array($product)) {
-                    continue;
-                }
-                $quantity = (int) ($product['quantity'] ?? 0);
-                $price = (float) ($product['discountPrice'] ?? $product['price'] ?? 0);
-                $extras = (float) ($product['extras_price'] ?? 0);
-
-                $lineTotal = ($price * $quantity) + $extras;
-                $subtotal += $lineTotal;
-            }
+        if (empty($products)) {
+            return 0;
         }
 
-        // If we have products but subtotal is still 0, return 0
-        // Otherwise, calculate grand total with taxes, delivery, etc.
-        if ($subtotal > 0) {
-            $discount = (float) ($order->discount ?? 0);
-            $subtotal = max($subtotal - $discount, 0);
+        $vendorId = $order->vendorID;
 
-            // Add taxes
-            $taxSetting = $this->decodeJson($order->taxSetting);
-            if (!empty($taxSetting) && is_array($taxSetting)) {
-                if ($this->isAssoc($taxSetting)) {
-                    $taxSetting = [$taxSetting];
-                }
-                foreach ($taxSetting as $tax) {
-                    if (empty($tax['enable']) || !is_array($tax)) {
-                        continue;
-                    }
-                    $type = strtolower($tax['type'] ?? 'percentage');
-                    $value = (float) ($tax['tax'] ?? 0);
-                    if ($type === 'percentage') {
-                        $subtotal += ($subtotal * $value / 100);
-                    } else {
-                        $subtotal += $value;
-                    }
-                }
+        $productIds = collect($products)
+            ->map(fn ($p) => $p['id'] ?? $p['productID'] ?? null)
+            ->filter()
+            ->unique()
+            ->toArray();
+
+        $vendorProducts = VendorProduct::where('vendorID', $vendorId)
+            ->whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id');
+
+        $grandTotal = 0;
+
+        foreach ($products as $product) {
+            $productId = $product['id'] ?? $product['productID'] ?? null;
+            if (!$productId || !isset($vendorProducts[$productId])) {
+                continue;
             }
 
-            // Add delivery and tip
-            $delivery = (float) ($order->deliveryCharge ?? 0);
-            $tip = (float) ($order->tip_amount ?? 0);
-            $subtotal += $delivery + $tip;
+            $vp = $vendorProducts[$productId];
+
+            $qty = (int) ($product['quantity'] ?? 1);
+            $price = (float) $vp->merchant_price;
+            $itemTotal = $price * $qty;
+
+            // Extras "20,30" → 50
+            $extrasTotal = 0;
+            if (!empty($product['extras_price'])) {
+                $extrasTotal = array_sum(
+                    array_map(
+                        'floatval',
+                        array_filter(array_map('trim', explode(',', (string) $product['extras_price'])))
+                    )
+                );
+            }
+
+            $grandTotal += ($itemTotal + $extrasTotal);
         }
 
-        return max($subtotal, 0);
+        return $grandTotal;
     }
+
+
 
     protected function customerName(RestaurantOrder $order): string
     {
@@ -469,6 +527,11 @@ class OrderController extends Controller
 
         return array_filter(array_map('trim', explode(',', (string) $value)));
     }
+    protected function normalizeStatus(?string $status): string
+    {
+        return strtolower(trim($status ?? ''));
+    }
+
 
     protected function buildOrderDetails(RestaurantOrder $order): array
     {
@@ -510,7 +573,29 @@ class OrderController extends Controller
         $mappedProducts = $this->mapProducts($products, $currency);
 
         // Calculate totals based on mapped products (with correct prices)
-        $summary = $this->calculateTotalsFromMappedProducts($order, $mappedProducts, $taxSetting, $specialDiscount, $currency);
+        $finalTotal = $this->calculateFinalTotal($order);
+
+
+
+        $grandTotal = $this->calculateFinalTotal($order);
+
+        $summary = [
+            'grand_total' => $this->formatCurrency($grandTotal, $currency),
+        ];
+
+
+// ✅ FORMAT CREATED & SCHEDULE TIME (FIX FOR ERROR)
+        $createdAt = $this->parseDate($order->createdAt);
+        $scheduleAt = $this->parseDate($order->scheduleTime ?: $order->createdAt);
+
+        $createdAtFormatted = $createdAt
+            ? $createdAt->format('d M Y h:i A')
+            : '—';
+
+        $scheduleAtFormatted = $scheduleAt
+            ? $scheduleAt->format('d M Y h:i A')
+            : '—';
+
 
         return [
             'customer' => [
@@ -524,10 +609,12 @@ class OrderController extends Controller
             'products' => $mappedProducts,
             'summary' => $summary,
             'order_type' => $this->formatOrderType($order->takeAway),
-            'created_at' => $this->formatDate($order->createdAt),
-//            'schedule_time' => $this->formatDate($order->scheduleTime),
-            'schedule_time' => $this->formatDate($order->scheduleTime ?: $order->createdAt),
-//            'estimated_time' => $order->estimatedTimeToPrepare,
+            'created_at_raw'   => $order->createdAt,
+            'schedule_time_raw'=> $order->scheduleTime ?: $order->createdAt,
+            'created_at_formatted' => $createdAtFormatted,
+            'schedule_time_formatted' => $scheduleAtFormatted,
+
+
             'estimated_time' => $order->estimatedTimeToPrepare ?: '20',
             'payment_method' => $this->formatPaymentMethod($order->payment_method),
             'status' => $order->status ?? 'N/A',
@@ -584,7 +671,20 @@ class OrderController extends Controller
 
         return array_map(function ($product) use ($currency, $placeholder, $vendorProductsById, $vendorProductsByName) {
             $quantity = (int) ($product['quantity'] ?? 0);
-            $extrasPrice = (float) ($product['extras_price'] ?? 0);
+            // ---- FIXED EXTRAS LOGIC (same as popup) ----
+            $extrasPrice = 0;
+
+            if (!empty($product['extras_price'])) {
+                $extrasPrice = array_sum(
+                    array_map(
+                        'floatval',
+                        array_filter(
+                            array_map('trim', explode(',', (string) $product['extras_price']))
+                        )
+                    )
+                );
+            }
+
 
             // Try to fetch price from vendor_products table
             $price = 0;
@@ -608,10 +708,13 @@ class OrderController extends Controller
                 $price = (float) ($vendorProduct['price'] ?? 0);
             }
 
-            // Fallback to order's stored price if vendor product not found
-            if ($price == 0) {
-                $price = (float) ($product['discountPrice'] ?? $product['price'] ?? 0);
+            // STRICT: price must come ONLY from vendor_products
+            if (!$vendorProduct || empty($vendorProduct['merchant_price'])) {
+                $price = 0;
+            } else {
+                $price = (float) $vendorProduct['merchant_price'];
             }
+
 
             $lineTotal = ($price * $quantity) + $extrasPrice;
 
@@ -830,34 +933,36 @@ class OrderController extends Controller
             return null;
         }
 
+        // Firebase array timestamps
         if (is_array($value)) {
             if (isset($value['_seconds'])) {
-                return Carbon::createFromTimestamp($value['_seconds']);
+                return Carbon::createFromTimestamp($value['_seconds'], 'Asia/Kolkata');
             }
             if (isset($value['seconds'])) {
-                return Carbon::createFromTimestamp($value['seconds']);
+                return Carbon::createFromTimestamp($value['seconds'], 'Asia/Kolkata');
             }
         }
 
         $clean = trim((string) $value);
         $clean = trim($clean, '"');
-        $clean = str_replace(['\\"', "\\'"], '', $clean);
 
-        $decoded = json_decode($clean, true);
-        if (json_last_error() === JSON_ERROR_NONE) {
-            if (isset($decoded['_seconds'])) {
-                return Carbon::createFromTimestamp($decoded['_seconds']);
-            }
-            if (isset($decoded['seconds'])) {
-                return Carbon::createFromTimestamp($decoded['seconds']);
-            }
+        // ISO 8601 (2025-11-23T14:21:30.422489Z)
+        if (str_contains($clean, 'T')) {
+            try {
+                return Carbon::parse($clean)->setTimezone('Asia/Kolkata');
+            } catch (\Throwable $e) {}
         }
 
+        // Normal SQL datetime (2026-02-04 16:42:08)
         try {
-            return Carbon::parse($clean);
-        } catch (\Throwable $e) {
-            return null;
-        }
+            return Carbon::createFromFormat(
+                'Y-m-d H:i:s',
+                $clean,
+                'Asia/Kolkata'
+            );
+        } catch (\Throwable $e) {}
+
+        return null;
     }
 
     protected function decodeJson($value): array
@@ -941,32 +1046,126 @@ class OrderController extends Controller
     {
         $last = DB::table('restaurant_orders')
             ->where('vendorID', $vendorID)
-            ->orderByRaw('CAST(SUBSTRING(id, 6) AS UNSIGNED) DESC')
-            ->select('id', 'scheduleTime', 'status')
+            ->whereRaw('LOWER(status) = ?', ['order placed'])
+
+            ->orderByRaw('STR_TO_DATE(createdAt, "%Y-%m-%d %H:%i:%s") DESC')
+
+            ->select('id', 'createdAt', 'status')
             ->first();
 
-        return response()->json(['latest_id' => $last->id ?? '']);
+        return response()->json([
+            'latest_id' => $last->id ?? ''
+        ]);
     }
+
 
     public function getOrder($id)
     {
+        \Log::info('GET ORDER HIT', ['id' => $id]);
+
         $order = DB::table('restaurant_orders')->where('id', $id)->first();
         if (!$order) return response()->json([]);
 
-        // Merge JSON values
-        $order->author = json_decode($order->author, true);
+        $author   = json_decode($order->author, true) ?? [];
+        $address  = json_decode($order->address, true) ?? [];
+        $products = json_decode($order->products, true) ?? [];
 
-        // Fetch vendor details properly
-        $vendor = DB::table('vendors')
-            ->where('id', $order->vendorID)
-            ->select('id', 'title', 'photo', 'vType', 'phonenumber', 'location')
-            ->first();
+        $vendorId = $order->vendorID;
 
-        $order->vendor_title = $vendor->title ?? null;
-        $order->vendor_photo = $vendor->photo ?? null;
+        // Collect product IDs
+        $productIds = collect($products)->pluck('id')->filter()->unique()->toArray();
 
-        return response()->json($order);
+        // Fetch vendor products (SOURCE OF TRUTH)
+        $vendorProducts = VendorProduct::where('vendorID', $vendorId)
+            ->whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id');
+
+        $popupItems = [];
+        $grandTotal = 0;
+
+        foreach ($products as $p) {
+
+            \Log::info('PRODUCT', $p);
+
+
+            $productId = $p['id'] ?? $p['productID'] ?? null;
+            if (!$productId || !isset($vendorProducts[$productId])) continue;
+
+            $vp = $vendorProducts[$productId];
+
+
+            $qty = (int) ($p['quantity'] ?? 1);
+            $itemPrice = (float) $vp->merchant_price;
+            $itemTotal = $itemPrice * $qty;
+
+            // ---- ADDONS LOGIC (FIXED) ----
+            $extras = [];
+            $extrasTotal = 0;
+
+            /**
+             * extras_price is stored like: "20,30"
+             * extras is stored like: ["cheese","butter"]
+             */
+            $extrasPrices = [];
+
+            if (!empty($p['extras_price'])) {
+                $extrasPrices = array_map(
+                    'floatval',
+                    array_filter(array_map('trim', explode(',', (string) $p['extras_price'])))
+                );
+            }
+
+            $extrasNames = is_array($p['extras'] ?? null) ? $p['extras'] : [];
+
+            foreach ($extrasNames as $i => $name) {
+                $price = $extrasPrices[$i] ?? 0;
+
+                $extras[] = [
+                    'name'  => $name,
+                    'price' => $price,
+                ];
+
+                $extrasTotal += $price;
+            }
+
+
+            $lineTotal = $itemTotal + $extrasTotal;
+            $grandTotal += $lineTotal;
+
+            $popupItems[] = [
+                'name' => $vp->name,
+                'qty' => $qty,
+                'item_total' => $itemTotal,
+                'extras' => $extras,
+                'line_total' => $lineTotal,
+            ];
+        }
+        $createdAt = $this->parseDate($order->createdAt);
+
+
+        return response()->json([
+            'order_id' => $order->id,
+            'status' => strtolower($order->status),
+            'order_date' => $createdAt
+                ? $createdAt->format('d M Y h:i A')
+                : '—',
+            'payment_type' => strtoupper($order->payment_method ?? 'COD'),
+
+            'customer' => [
+                'name' => trim(($author['firstName'] ?? '') . ' ' . ($author['lastName'] ?? '')),
+                'phone' => $author['phoneNumber'] ?? 'N/A',
+            ],
+
+            'address' => $address['address'] ?? $address['text'] ?? 'N/A',
+
+            // 🔥 POPUP DATA ONLY
+            'popup_items' => $popupItems,
+            'popup_total' => $grandTotal,
+        ]);
     }
+
+
     public function getRingtone() {
         $row = DB::table('settings') ->where('document_name', 'globalSettings') ->first();
         if (!$row) {

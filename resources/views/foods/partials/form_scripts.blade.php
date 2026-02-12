@@ -1,205 +1,242 @@
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const addOnTemplate = document.getElementById('add-on-template');
-    const specTemplate = document.getElementById('spec-template');
+    document.addEventListener('DOMContentLoaded', function () {
+        /* ===============================
+           AVAILABILITY SCHEDULING - FIXED FOR EDIT BLADE
+        =============================== */
 
-    function appendClone(template, containerSelector) {
-        const container = document.querySelector(containerSelector);
-        if (!container || !template) {
-            return;
+        const toggleBtn = document.getElementById('toggle-availability');
+        const availabilitySection = document.getElementById('availability-section');
+        const availabilitySummary = document.getElementById('availability-summary');
+        const dayCheckboxes = document.querySelectorAll('.day-checkbox');
+
+        if (toggleBtn && availabilitySection) {
+            toggleBtn.addEventListener('click', function() {
+                const isVisible = availabilitySection.style.display !== 'none';
+                availabilitySection.style.display = isVisible ? 'none' : 'block';
+                if (availabilitySummary) {
+                    availabilitySummary.style.display = isVisible ? 'block' : 'none';
+                }
+            });
         }
 
-        const clone = template.content.cloneNode(true);
-        container.appendChild(clone);
-    }
+        if (dayCheckboxes.length > 0) {
+            dayCheckboxes.forEach(cb => {
+                cb.addEventListener('change', function () {
+                    const day = this.dataset.day;
+                    const group = document.querySelector(`.day-timings-group[data-day="${day}"]`);
+                    if (!group) return;
+                    group.style.display = this.checked ? 'block' : 'none';
 
-    document.querySelectorAll('[data-addons-add]').forEach(function (button) {
-        button.addEventListener('click', function (event) {
-            event.preventDefault();
-            appendClone(addOnTemplate, '[data-addons-container]');
-        });
-    });
-
-    document.querySelectorAll('[data-specs-add]').forEach(function (button) {
-        button.addEventListener('click', function (event) {
-            event.preventDefault();
-            appendClone(specTemplate, '[data-specs-container]');
-        });
-    });
-
-    document.addEventListener('click', function (event) {
-        if (event.target.matches('[data-remove-row]')) {
-            event.preventDefault();
-            const row = event.target.closest('.repeatable-row');
-            if (row) {
-                row.remove();
-            }
-        }
-    });
-});
-$(document).ready(function() {
-
-    // 1. Filter dropdown options based on search
-    $('#food_category_search').on('keyup', function() {
-        var search = $(this).val().toLowerCase();
-        $('#food_category option').each(function() {
-            if ($(this).val() === "") return; // skip placeholder
-            var text = $(this).text().toLowerCase();
-            $(this).toggle(text.indexOf(search) > -1);
-        });
-    });
-
-    // 2. When selecting from dropdown, update tags
-    $('#food_category').on('change', function() {
-        updateSelectedFoodCategoryTags();
-    });
-
-    // 3. Remove tag and unselect dropdown
-    $('#selected_categories').on('click', '.remove-tag', function() {
-        var value = $(this).closest('.selected-category-tag').data('value');
-        $('#food_category option[value="' + value + '"]').prop('selected', false);
-        updateSelectedFoodCategoryTags();
-    });
-
-    // 4. Show tags on page load (important for edit form)
-    updateSelectedFoodCategoryTags();
-});
-
-    // 5. Tag generation
-function updateSelectedFoodCategoryTags() {
-    var html = '';
-    $('#food_category option:selected').each(function() {
-        if ($(this).val() !== "") {
-            html += `
-                <span class="selected-category-tag" data-value="${$(this).val()}">
-                    ${$(this).text()}
-                    <span class="remove-tag">&times;</span>
-                </span>`;
-        }
-    });
-    $('#selected_categories').html(html);
-}
-
-// Availability Scheduling JavaScript
-document.addEventListener('DOMContentLoaded', function() {
-    const toggleBtn = document.getElementById('toggle-availability');
-    const availabilitySection = document.getElementById('availability-section');
-    const availabilitySummary = document.getElementById('availability-summary');
-    const dayCheckboxes = document.querySelectorAll('.day-checkbox');
-    
-    // Toggle availability section
-    if (toggleBtn && availabilitySection) {
-        toggleBtn.addEventListener('click', function() {
-            const isVisible = availabilitySection.style.display !== 'none';
-            availabilitySection.style.display = isVisible ? 'none' : 'block';
-            if (availabilitySummary) {
-                availabilitySummary.style.display = isVisible ? 'block' : 'none';
-            }
-            toggleBtn.innerHTML = isVisible 
-                ? '<i class="fa fa-clock mr-1"></i> Manage Schedule'
-                : '<i class="fa fa-eye mr-1"></i> Hide Schedule';
-        });
-    }
-    
-    // Handle day checkbox changes
-    dayCheckboxes.forEach(function(checkbox) {
-        checkbox.addEventListener('change', function() {
-            const day = this.dataset.day;
-            const dayTimingsGroup = document.querySelector(`.day-timings-group[data-day="${day}"]`);
-            
-            if (this.checked) {
-                if (dayTimingsGroup) {
-                    dayTimingsGroup.style.display = 'block';
-                    // If no time slots exist, add one empty slot
-                    const timingsList = dayTimingsGroup.querySelector('.timings-list');
-                    if (timingsList && timingsList.children.length === 0) {
-                        addTimeSlot(day);
+                    if (this.checked) {
+                        const timingsList = group.querySelector('.timings-list');
+                        if (timingsList && timingsList.children.length === 0) {
+                            addTimeSlot(day);
+                        }
                     }
+                });
+            });
+        }
+
+        window.addTimeSlot = function(day) {
+            const timingsList = document.querySelector(`.timings-list[data-day="${day}"]`);
+            if (!timingsList) return;
+
+            let maxIndex = -1;
+            timingsList.querySelectorAll('.timing-row').forEach(row => {
+                const index = parseInt(row.dataset.index || -1);
+                if (index > maxIndex) maxIndex = index;
+            });
+            const newIndex = maxIndex + 1;
+
+            const slotHtml = `
+                <div class="row align-items-end mb-2 timing-row" data-day="${day}" data-index="${newIndex}">
+                    <div class="col-md-4">
+                        <label class="form-label small">From</label>
+                        <input type="time"
+                               name="available_timings[${day}][${newIndex}][from]"
+                               class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">To</label>
+                        <input type="time"
+                               name="available_timings[${day}][${newIndex}][to]"
+                               class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-time-slot w-100">
+                            <i class="fa fa-times mr-1"></i> Remove
+                        </button>
+                    </div>
+                </div>
+            `;
+            timingsList.insertAdjacentHTML('beforeend', slotHtml);
+        };
+
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.add-time-slot')) {
+                e.preventDefault();
+                const day = e.target.closest('.add-time-slot').dataset.day;
+                addTimeSlot(day);
+                return;
+            }
+
+            if (e.target.closest('.remove-time-slot')) {
+                e.preventDefault();
+                const row = e.target.closest('.timing-row');
+                if (row) row.remove();
+                return;
+            }
+
+            if (e.target.closest('[data-addons-add]')) {
+                e.preventDefault();
+                const template = document.getElementById('add-on-template');
+                const container = document.querySelector('[data-addons-container]');
+                if (template && container) {
+                    container.appendChild(template.content.cloneNode(true));
                 }
-            } else {
-                if (dayTimingsGroup) {
-                    dayTimingsGroup.style.display = 'none';
+                return;
+            }
+
+            if (e.target.closest('[data-specs-add]')) {
+                e.preventDefault();
+                const template = document.getElementById('spec-template');
+                const container = document.querySelector('[data-specs-container]');
+                if (template && container) {
+                    container.appendChild(template.content.cloneNode(true));
                 }
+                return;
+            }
+
+            if (e.target.closest('[data-remove-row]')) {
+                e.preventDefault();
+                const row = e.target.closest('.repeatable-row');
+                if (row) row.remove();
             }
         });
-    });
-    
-    // Add time slot
-    document.querySelectorAll('.add-time-slot').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            const day = this.dataset.day;
-            addTimeSlot(day);
+
+        document.querySelectorAll('.day-checkbox:checked').forEach(cb => {
+            const day = cb.dataset.day;
+            const group = document.querySelector(`.day-timings-group[data-day="${day}"]`);
+            if (group) group.style.display = 'block';
         });
     });
-    
-    // Remove time slot
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('.remove-time-slot')) {
-            const btn = e.target.closest('.remove-time-slot');
-            const timingRow = btn.closest('.timing-row');
-            if (timingRow) {
-                const timingsList = timingRow.parentElement;
-                timingRow.remove();
-                // If no time slots remain for this day, but day is checked, add one empty slot
-                if (timingsList.children.length === 0) {
-                    const day = timingRow.dataset.day;
-                    const dayCheckbox = document.getElementById(`day_${day}`);
-                    if (dayCheckbox && dayCheckbox.checked) {
-                        addTimeSlot(day);
-                    }
-                }
+
+    /* ===============================
+       PRODUCT OPTIONS (EDIT)
+    =============================== */
+
+    const masterOptions = @json($masterOptions ?? []);
+    let selectedOptions = @json($food->options ?? []);
+
+    window.openEditOptionsModal = function () {
+        let html = `
+<div class="modal fade" id="editOptionsModal">
+ <div class="modal-dialog modal-md">
+  <div class="modal-content">
+   <div class="modal-header">
+    <h5 class="modal-title">Product Options</h5>
+    <button type="button" class="close" data-dismiss="modal">&times;</button>
+   </div>
+   <div class="modal-body">
+`;
+
+        if (!masterOptions.length) {
+            html += `<p class="text-muted text-center">No options available</p>`;
+        } else {
+            masterOptions.forEach(opt => {
+                const selected = selectedOptions.find(sel =>
+                    sel.id === opt.id &&
+                    sel.title === opt.title &&
+                    sel.subtitle === opt.subtitle
+                );
+
+                const checked = !!selected;
+                const optionId = 'opt_' + Math.random().toString(36).substr(2, 9);
+
+                html += `
+<div class="form-check mb-2 d-flex align-items-center gap-2">
+    <input type="checkbox"
+           id="${optionId}"
+           class="form-check-input option-checkbox"
+           ${checked ? 'checked' : ''}
+           data-id="${opt.id}"
+           data-title="${opt.title ?? ''}"
+           data-subtitle="${opt.subtitle ?? ''}"
+           data-default-price="${opt.price ?? 0}">
+
+    <label class="form-check-label mr-2" for="${optionId}">
+        ${opt.title}
+        ${opt.subtitle ? ` – ${opt.subtitle}` : ''}
+    </label>
+
+    <input type="number"
+           class="form-control form-control-sm option-price-input"
+           style="width:90px"
+           value="${checked ? selected.price : opt.price}">
+</div>
+`;
+            });
+        }
+
+        html += `
+   </div>
+   <div class="modal-footer">
+    <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+    <button class="btn btn-primary" onclick="saveEditOptions()">Save</button>
+   </div>
+  </div>
+ </div>
+</div>
+`;
+
+        $('#editOptionsModal').remove();
+        document.body.insertAdjacentHTML('beforeend', html);
+        $('#editOptionsModal').modal('show');
+
+        $('#editOptionsModal').on('hidden.bs.modal', function () {
+            $(this).remove();
+        });
+    };
+
+    window.saveEditOptions = function () {
+        selectedOptions = [];
+
+        document.querySelectorAll('.option-checkbox').forEach(cb => {
+
+            const priceInput = cb.closest('.form-check')
+                ?.querySelector('.option-price-input');
+
+            const finalPrice =
+                priceInput && priceInput.value !== ''
+                    ? priceInput.value
+                    : cb.dataset.defaultPrice;
+
+            if (cb.checked) {
+                selectedOptions.push({
+                    id: cb.dataset.id,
+                    title: cb.dataset.title || '',
+                    subtitle: cb.dataset.subtitle || '',
+                    price: finalPrice || 0,
+                    is_available: true
+                });
+
             }
-        }
-    });
-    
-    // Helper function to add time slot
-    function addTimeSlot(day) {
-        const dayTimingsGroup = document.querySelector(`.day-timings-group[data-day="${day}"]`);
-        if (!dayTimingsGroup) return;
-        
-        const timingsList = dayTimingsGroup.querySelector('.timings-list');
-        if (!timingsList) return;
-        
-        // Get the highest index for this day
-        const existingRows = timingsList.querySelectorAll('.timing-row');
-        let maxIndex = -1;
-        existingRows.forEach(row => {
-            const index = parseInt(row.dataset.index || -1);
-            if (index > maxIndex) maxIndex = index;
         });
-        const newIndex = maxIndex + 1;
-        
-        const row = document.createElement('div');
-        row.className = 'row align-items-end mb-2 timing-row';
-        row.dataset.day = day;
-        row.dataset.index = newIndex;
-        row.innerHTML = `
-            <div class="col-md-4">
-                <label class="form-label small">From</label>
-                <input type="time" 
-                       name="available_timings[${day}][${newIndex}][from]" 
-                       class="form-control form-control-sm time-slot-from">
-            </div>
-            <div class="col-md-4">
-                <label class="form-label small">To</label>
-                <input type="time" 
-                       name="available_timings[${day}][${newIndex}][to]" 
-                       class="form-control form-control-sm time-slot-to">
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-                <button type="button" class="btn btn-sm btn-outline-danger remove-time-slot w-100" title="Remove time slot">
-                    <i class="fa fa-times mr-1"></i> Remove
-                </button>
-            </div>
-        `;
-        timingsList.appendChild(row);
-        
-        // Focus on the new from input
-        const fromInput = row.querySelector('.time-slot-from');
-        if (fromInput) {
-            fromInput.focus();
+
+        document.getElementById('options_json').value = JSON.stringify(selectedOptions);
+
+        const preview = document.getElementById('options-preview');
+        if (selectedOptions.length) {
+            preview.innerHTML =
+                '<ul>' +
+                selectedOptions.map(o =>
+                    `<li><strong>${o.title}</strong> ${o.subtitle ?? ''} (₹${o.price})</li>`
+                ).join('') +
+                '</ul>';
+        } else {
+            preview.innerHTML = '<span class="text-muted">No options selected</span>';
         }
+
+        $('#editOptionsModal').modal('hide');
     }
-});
 </script>
-

@@ -12,6 +12,8 @@ use App\Models\Vendor;
 use App\Models\VendorProduct;
 use App\Models\RestaurantOrder;
 use App\Models\Currency;
+use App\Http\Controllers\OrderController;
+
 
 class HomeController extends Controller
 {
@@ -32,6 +34,10 @@ class HomeController extends Controller
      */
     public function index()
     {
+        $range = request('range');
+        $from  = request('from');
+        $to    = request('to');
+
         $user = Auth::user();
 
         // Get firebase id from users table
@@ -52,37 +58,98 @@ class HomeController extends Controller
             ];
         });
 
+
+
         // Cache dashboard data (5 minutes) - only load recent orders for dashboard
-        $cacheKey = 'dashboard_' . ($vendor->id ?? 'none');
-        $dashboard = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($vendor, $currencyMeta) {
-            $orders = collect();
-            $productCount = 0;
+        $orders = collect();
+        $productCount = 0;
+        $totalOrders = 0;
 
-            if ($vendor) {
-                // Only fetch recent orders (last 100) instead of all orders for dashboard
-                $orders = RestaurantOrder::where('vendorID', $vendor->id)
-                    ->orderByDesc('createdAt')
-                    ->limit(100)
-                    ->select(['id', 'status', 'products', 'author', 'createdAt', 'discount', 'deliveryCharge', 'toPayAmount', 'ToPay', 'adminCommission', 'adminCommissionType', 'taxSetting', 'takeAway'])
-                    ->get();
+        $statusCounts = [
+            'placed' => 0,
+            'confirmed' => 0,
+            'completed' => 0,
+            'rejected' => 0,
+            'canceled' => 0,
+        ];
 
-                // Cache product count separately (5 minutes)
-                $productCount = \Illuminate\Support\Facades\Cache::remember('product_count_' . $vendor->id, 300, function () use ($vendor) {
-                    return VendorProduct::where('vendorID', $vendor->id)->count();
-                });
-            }
+        if ($vendor) {
+            $productCount = VendorProduct::where('vendorID', $vendor->id)->count();
 
-            return $this->buildDashboardData($orders, $productCount, $currencyMeta);
-        });
+            // 1️⃣ Create query (same query, same select)
+            $ordersQuery = RestaurantOrder::where('vendorID', $vendor->id)
+                ->select([
+                    'id',
+                    'vendorID',
+                    'status',
+                    'products',
+                    'author',
+                    'createdAt',
+                    'discount',
+                    'deliveryCharge',
+                    'toPayAmount',
+                    'ToPay',
+                    'adminCommission',
+                    'adminCommissionType',
+                    'taxSetting',
+                    'takeAway',
+                ]);
+
+            // 2️⃣ Apply date filter ONLY if selected
+            $ordersQuery = $this->applyDateFilter(
+                $ordersQuery,
+                request('range'),
+                request('from'),
+                request('to')
+            );
+
+            // 3️⃣ Final execution (same ordering)
+            $orders = $ordersQuery
+                ->orderByDesc('createdAt')
+                ->get();
+            // ✅ FILTER-BASED TOTAL ORDERS
+            $totalOrders = $orders->count();
+
+// ✅ FILTER-BASED STATUS COUNTS
+            $statusCounts = [
+                'placed' => $orders->where('status', 'Order Placed')->count(),
+
+                'confirmed' => $orders->whereIn('status', [
+                    'Order Accepted',
+                    'Driver Accepted'
+                ])->count(),
+
+                'completed' => $orders->where('status', 'Order Completed')->count(),
+
+                // ✅ ONLY rejected
+                'rejected' => $orders->whereIn('status', [
+                    'Order Rejected',
+                    'Driver Rejected'
+                ])->count(),
+
+                // ✅ ONLY cancelled
+                'canceled' => $orders->where('status', 'Order Cancelled')->count(),
+            ];
+
+
+        }
+
+        $dashboard = $this->buildDashboardData($orders, $productCount, $currencyMeta);
+
 
         return view('home', [
-            'stats' => $dashboard['totals'],
-            'statusCounts' => $dashboard['status_counts'],
-            'recentOrders' => $dashboard['recent_orders'],
-            'charts' => $dashboard['charts'],
+            'stats' => [
+                'total_orders' => $totalOrders,
+                'total_products' => $dashboard['totals']['total_products'],
+                'total_earnings_formatted' => $dashboard['totals']['total_earnings_formatted'],
+            ],
+            'statusCounts' => $statusCounts,
+            'recentOrders' => $dashboard['recent_orders'], // unchanged
+            'charts' => $dashboard['charts'],               // unchanged
             'currencyMeta' => $currencyMeta,
             'vendorExists' => (bool) $vendor,
         ]);
+
     }
 
     /**
@@ -106,10 +173,10 @@ class HomeController extends Controller
     }
 
     public function storeFirebaseService(Request $request){
-		if(!empty($request->serviceJson) && !Storage::disk('local')->has('firebase/credentials.json')){
-			Storage::disk('local')->put('firebase/credentials.json',file_get_contents(base64_decode($request->serviceJson)));
-		}
-	}
+        if(!empty($request->serviceJson) && !Storage::disk('local')->has('firebase/credentials.json')){
+            Storage::disk('local')->put('firebase/credentials.json',file_get_contents(base64_decode($request->serviceJson)));
+        }
+    }
 
     /**
      * Build dashboard metrics from SQL data.
@@ -119,9 +186,9 @@ class HomeController extends Controller
         $statusMap = [
             'placed' => ['Order Placed'],
             'confirmed' => ['Order Accepted', 'Driver Accepted'],
-            'shipped' => ['Order Shipped', 'In Transit'],
             'completed' => ['Order Completed'],
-            'canceled' => ['Order Rejected', 'Order Cancelled'],
+            'rejected' => ['Order Rejected', 'Driver Rejected'],
+            'canceled' => ['Order Cancelled'],
             'failed' => ['Driver Rejected'],
             'pending' => ['Driver Pending'],
         ];
@@ -136,8 +203,20 @@ class HomeController extends Controller
 
         $currentYear = Carbon::now()->year;
 
+        $completedOrders = $orders->where('status', 'Order Completed');
+
+
+
+        $completedEarnings = 0;
+
+        foreach ($completedOrders as $completedOrder) {
+            $completedEarnings += app(OrderController::class)
+                ->calculateFinalTotal($completedOrder);
+        }
+
+
         foreach ($orders as $order) {
-            $status = $order->status ?? '';
+            $status = trim((string)($order->status ?? ''));
 
             foreach ($statusMap as $label => $statuses) {
                 if (in_array($status, $statuses, true)) {
@@ -148,25 +227,27 @@ class HomeController extends Controller
 
             $parsed = $this->parseOrderTotals($order);
 
-            if ($status === 'Order Completed') {
-                $earnings += $parsed['total'];
-                $commissionTotal += $parsed['admin_commission'];
 
-                if ($parsed['date'] && $parsed['date']->year === $currentYear) {
-                    $salesByMonth[(int) $parsed['date']->format('n')] += $parsed['total'];
-                }
+
+            if (
+                $status === 'Order Completed' &&
+                $parsed['date'] &&
+                $parsed['date']->year === $currentYear
+            ) {
+                $salesByMonth[(int)$parsed['date']->format('n')] += (float)$parsed['total'];
             }
+
         }
+
+
 
         $recentOrders = $this->buildRecentOrders($orders, $currencyMeta);
 
         $totals = [
             'total_orders' => $totalOrders,
             'total_products' => $productCount,
-            'total_earnings' => $earnings,
-            'total_earnings_formatted' => $this->formatCurrency($earnings, $currencyMeta),
-            'admin_commission' => $commissionTotal,
-            'admin_commission_formatted' => $this->formatCurrency($commissionTotal, $currencyMeta),
+            'total_earnings' => $completedEarnings,
+            'total_earnings_formatted' => $this->formatCurrency($completedEarnings, $currencyMeta),
         ];
 
         $charts = [
@@ -180,7 +261,8 @@ class HomeController extends Controller
             ],
             'commission' => [
                 'labels' => ['Total Earnings'],
-                'data' => [$earnings],
+                'data' => [$completedEarnings],
+
             ],
         ];
 
@@ -207,9 +289,21 @@ class HomeController extends Controller
         foreach ($products as $product) {
             $quantity = (int) ($product['quantity'] ?? 0);
             $price = $product['discountPrice'] ?? $product['price'] ?? 0;
-            $extras = $product['extras_price'] ?? 0;
+            $extrasRaw = $product['extras_price'] ?? 0;
+            $extrasTotal = 0;
 
-            $lineTotal = ((float) $price * $quantity) + (float) $extras;
+            if (is_string($extrasRaw)) {
+                // Handle "20,30" or "20, 30"
+                $extrasArray = array_filter(array_map('trim', explode(',', $extrasRaw)));
+                foreach ($extrasArray as $extra) {
+                    $extrasTotal += (float) $extra;
+                }
+            } else {
+                $extrasTotal = (float) $extrasRaw;
+            }
+
+            $lineTotal = ((float) $price * $quantity) + $extrasTotal;
+
             $subtotal += $lineTotal;
             $productCount += $quantity;
         }
@@ -228,11 +322,11 @@ class HomeController extends Controller
 
         $total = max($minPrice + $tax + $delivery, 0);
 
-        if (!empty($order->toPayAmount)) {
-            $total = (float) $order->toPayAmount;
-        } elseif (!empty($order->ToPay)) {
-            $total = (float) $order->ToPay;
-        }
+        // ✅ SAME AS ORDER TABLE
+        $total = app(\App\Http\Controllers\OrderController::class)
+            ->calculateFinalTotal($order);
+
+
 
         $commission = 0;
         $commissionValue = (float) ($order->adminCommission ?? 0);
@@ -270,25 +364,25 @@ class HomeController extends Controller
                 'id' => $order->id,
                 'customer' => $customerName,
                 'type' => $this->formatOrderType($parsed['takeAway']),
-                'subtotal' => $this->formatCurrency($parsed['total'], $currencyMeta),
+                'grand_total' => $this->formatCurrency($parsed['total'], $currencyMeta),
                 'products' => $parsed['product_count'],
-                'date' => $date ? $date->format('d M Y H:i') : '—',
+                'date' => $date ? $date->format('d M Y h:i A') : '—',
                 'timestamp' => $date ? $date->timestamp : 0,
                 'status' => $order->status ?? 'N/A',
                 'status_class' => $this->statusClass($order->status ?? ''),
                 'url' => route('orders.edit', $order->id),
             ];
         })
-        ->sortByDesc(function ($order) {
-            return $order['timestamp'];
-        })
-        ->take(10)
-        ->map(function ($order) {
-            unset($order['timestamp']);
-            return $order;
-        })
-        ->values()
-        ->toArray();
+            ->sortByDesc(function ($order) {
+                return $order['timestamp'];
+            })
+            ->take(10)
+            ->map(function ($order) {
+                unset($order['timestamp']);
+                return $order;
+            })
+            ->values()
+            ->toArray();
     }
 
     protected function formatOrderType($value): string
@@ -326,34 +420,36 @@ class HomeController extends Controller
             return null;
         }
 
+        // Firebase array timestamps
         if (is_array($value)) {
             if (isset($value['_seconds'])) {
-                return Carbon::createFromTimestamp($value['_seconds']);
+                return Carbon::createFromTimestamp($value['_seconds'], 'Asia/Kolkata');
             }
             if (isset($value['seconds'])) {
-                return Carbon::createFromTimestamp($value['seconds']);
+                return Carbon::createFromTimestamp($value['seconds'], 'Asia/Kolkata');
             }
         }
 
         $clean = trim((string) $value);
         $clean = trim($clean, '"');
-        $clean = str_replace(['\\"', "\\'"], '', $clean);
 
-        $decoded = json_decode($clean, true);
-        if (json_last_error() === JSON_ERROR_NONE) {
-            if (isset($decoded['_seconds'])) {
-                return Carbon::createFromTimestamp($decoded['_seconds']);
-            }
-            if (isset($decoded['seconds'])) {
-                return Carbon::createFromTimestamp($decoded['seconds']);
-            }
+        // ISO 8601 (2025-11-23T14:21:30.422489Z)
+        if (str_contains($clean, 'T')) {
+            try {
+                return Carbon::parse($clean)->setTimezone('Asia/Kolkata');
+            } catch (\Throwable $e) {}
         }
 
+        // Normal SQL datetime (2026-02-04 16:42:08)
         try {
-            return Carbon::parse($clean);
-        } catch (\Throwable $e) {
-            return null;
-        }
+            return Carbon::createFromFormat(
+                'Y-m-d H:i:s',
+                $clean,
+                'Asia/Kolkata'
+            );
+        } catch (\Throwable $e) {}
+
+        return null;
     }
 
     protected function decodeJson($value): array
@@ -374,4 +470,62 @@ class HomeController extends Controller
 
         return json_last_error() === JSON_ERROR_NONE ? $decoded : [];
     }
+    protected function applyDateFilter($query, ?string $range, ?string $from, ?string $to)
+    {
+        if (!$range) {
+            return $query;
+        }
+
+        $now = Carbon::now();
+
+        // ✅ ONE unified datetime expression (ISO + SQL)
+        $dateExpr = "
+        CASE
+            WHEN createdAt LIKE '%T%'
+                THEN STR_TO_DATE(SUBSTRING_INDEX(createdAt, '.', 1), '%Y-%m-%dT%H:%i:%s')
+            ELSE STR_TO_DATE(createdAt, '%Y-%m-%d %H:%i:%s')
+        END
+    ";
+
+        return match ($range) {
+
+            'today' => $query->whereRaw(
+                "DATE($dateExpr) = ?",
+                [$now->toDateString()]
+            ),
+
+            'week' => $query->whereRaw(
+                "$dateExpr BETWEEN ? AND ?",
+                [
+                    $now->copy()->startOfWeek()->format('Y-m-d H:i:s'),
+                    $now->copy()->endOfWeek()->format('Y-m-d H:i:s'),
+                ]
+            ),
+
+            'month' => $query->whereRaw(
+                "MONTH($dateExpr) = ? AND YEAR($dateExpr) = ?",
+                [$now->month, $now->year]
+            ),
+
+            'year' => $query->whereRaw(
+                "YEAR($dateExpr) = ?",
+                [$now->year]
+            ),
+
+            'custom' => ($from && $to)
+                ? $query->whereRaw(
+                    "$dateExpr BETWEEN ? AND ?",
+                    [
+                        Carbon::parse($from)->startOfDay()->format('Y-m-d H:i:s'),
+                        Carbon::parse($to)->endOfDay()->format('Y-m-d H:i:s'),
+                    ]
+                )
+                : $query,
+
+            default => $query,
+        };
+    }
+
+
+
 }

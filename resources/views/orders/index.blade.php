@@ -19,6 +19,33 @@
                 <div class="col-12">
                     <div class="card">
                         <div class="card-body">
+                            <div class="order-status-filters">
+    <span class="status-badge all">
+        All ({{ $orderCounts['all'] }})
+    </span>
+
+                                <span class="status-badge placed">
+        Placed ({{ $orderCounts['placed'] }})
+    </span>
+
+                                <span class="status-badge accepted">
+        Accepted ({{ $orderCounts['accepted'] }})
+    </span>
+
+                                <span class="status-badge rejected">
+        Rejected ({{ $orderCounts['rejected'] }})
+    </span>
+
+                                <span class="status-badge cancelled">
+        Cancelled ({{ $orderCounts['cancelled'] }})
+    </span>
+
+                                <span class="status-badge completed">
+        Completed ({{ $orderCounts['completed'] }})
+    </span>
+                            </div>
+
+
                             <div class="table-responsive m-t-10">
                                 <table id="orderTable"
                                        class="display nowrap table table-hover table-striped table-bordered table table-striped"
@@ -58,121 +85,124 @@
             </div>
         </div>
     </div>
+
+
 @endsection
 @section('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const statusFilter = @json($statusQuery ?? '');
-    // Delete functionality commented out
-    // const bulkDeleteForm = document.getElementById('order-bulk-delete-form');
-    // const deleteForm = document.getElementById('order-delete-form');
-    // const selectAll = document.getElementById('is_active');
-    // const deleteAllBtn = document.getElementById('deleteAll');
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const statusFilter = @json($statusQuery ?? '');
+            // Delete functionality commented out
+            // const bulkDeleteForm = document.getElementById('order-bulk-delete-form');
+            // const deleteForm = document.getElementById('order-delete-form');
+            // const selectAll = document.getElementById('is_active');
+            // const deleteAllBtn = document.getElementById('deleteAll');
 
-    const ordersTable = $('#orderTable').DataTable({
-        processing: true,
-        serverSide: true,
-        responsive: true,
-        pageLength: 10,
-        ajax: {
-            url: '{{ route('orders.data') }}',
-            data: function (d) {
-                d.status = statusFilter;
-            }
-        },
-        columns: [
-            // { data: 'select', orderable: false, searchable: false }, // Commented out - delete checkbox column
-            { data: 'id' },
-            { data: 'customer' },
-            { data: 'driver' },
-            { data: 'status', orderable: false, searchable: false },
-            { data: 'amount' },
-            { data: 'type', orderable: false },
-            { data: 'date' },
-            { data: 'actions', orderable: false, searchable: false },
-        ],
-        order: [[7, 'desc']],
-        language: {
-            zeroRecords: "{{trans('lang.no_record_found')}}",
-            emptyTable: "{{trans('lang.no_record_found')}}",
-        }
-    });
+            const ordersTable = $('#orderTable').DataTable({
+                processing: true,
+                serverSide: true,
+                responsive: true,
+                pageLength: 10,
+                ajax: {
+                    url: '{{ route('orders.data') }}',
+                    data: function (d) {
+                        d.status = statusFilter;
+                    }
+                },
+                columns: [
+                    // { data: 'select', orderable: false, searchable: false }, // Commented out - delete checkbox column
+                    { data: 'id' },
+                    { data: 'customer' },
+                    { data: 'driver' },
+                    { data: 'status', orderable: false, searchable: false },
+                    { data: 'amount' },
+                    { data: 'type', orderable: false },
+                    { data: 'date' },
+                    { data: 'actions', orderable: false, searchable: false },
+                ],
+                order: [[6, 'desc']],
 
-    // Delete functionality commented out
-    // function updateBulkControls() {
-    //     const checkboxes = Array.from(document.querySelectorAll('#orderTable .is_open'));
-    //     const checked = checkboxes.filter(cb => cb.checked);
+                language: {
+                    zeroRecords: "{{trans('lang.no_record_found')}}",
+                    emptyTable: "{{trans('lang.no_record_found')}}",
+                }
+            });
 
-    //     if (selectAll) {
-    //         if (!checkboxes.length) {
-    //             selectAll.checked = false;
-    //             selectAll.indeterminate = false;
-    //         } else {
-    //             selectAll.checked = checked.length === checkboxes.length && checked.length > 0;
-    //             selectAll.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
-    //         }
-    //     }
+            // Delete functionality commented out
+            // function updateBulkControls() {
+            //     const checkboxes = Array.from(document.querySelectorAll('#orderTable .is_open'));
+            //     const checked = checkboxes.filter(cb => cb.checked);
 
-    //     if (deleteAllBtn) {
-    //         deleteAllBtn.classList.toggle('disabled', checked.length === 0);
-    //     }
-    // }
+            //     if (selectAll) {
+            //         if (!checkboxes.length) {
+            //             selectAll.checked = false;
+            //             selectAll.indeterminate = false;
+            //         } else {
+            //             selectAll.checked = checked.length === checkboxes.length && checked.length > 0;
+            //             selectAll.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
+            //         }
+            //     }
 
-    // ordersTable.on('draw', function () {
-    //     updateBulkControls();
-    // });
+            //     if (deleteAllBtn) {
+            //         deleteAllBtn.classList.toggle('disabled', checked.length === 0);
+            //     }
+            // }
 
-    // if (selectAll) {
-    //     selectAll.addEventListener('change', function () {
-    //         document.querySelectorAll('#orderTable .is_open').forEach(cb => {
-    //             cb.checked = selectAll.checked;
-    //         });
-    //         updateBulkControls();
-    //     });
-    // }
+            // ordersTable.on('draw', function () {
+            //     updateBulkControls();
+            // });
 
-    // document.addEventListener('change', function (event) {
-    //     if (event.target.classList.contains('is_open')) {
-    //         updateBulkControls();
-    //     }
-    // });
+            // if (selectAll) {
+            //     selectAll.addEventListener('change', function () {
+            //         document.querySelectorAll('#orderTable .is_open').forEach(cb => {
+            //             cb.checked = selectAll.checked;
+            //         });
+            //         updateBulkControls();
+            //     });
+            // }
 
-    // Bulk delete functionality commented out
-    // if (deleteAllBtn && bulkDeleteForm) {
-    //     deleteAllBtn.addEventListener('click', function (event) {
-    //         event.preventDefault();
-    //         if (deleteAllBtn.classList.contains('disabled')) {
-    //             return;
-    //         }
-    //         const selected = Array.from(document.querySelectorAll('#orderTable .is_open:checked'));
-    //         if (!selected.length || !confirm('Delete selected orders?')) {
-    //             return;
-    //         }
-    //         bulkDeleteForm.querySelectorAll('input[name="ids[]"]').forEach(el => el.remove());
-    //         selected.forEach(cb => {
-    //             const input = document.createElement('input');
-    //             input.type = 'hidden';
-    //             input.name = 'ids[]';
-    //             input.value = cb.value;
-    //             bulkDeleteForm.appendChild(input);
-    //         });
-    //         bulkDeleteForm.submit();
-    //     });
-    // }
+            // document.addEventListener('change', function (event) {
+            //     if (event.target.classList.contains('is_open')) {
+            //         updateBulkControls();
+            //     }
+            // });
 
-    // Single delete functionality commented out
-    // document.addEventListener('click', function (event) {
-    //     const deleteBtn = event.target.closest('.order-delete-btn');
-    //     if (!deleteBtn || !deleteForm) {
-    //         return;
-    //     }
-    //     event.preventDefault();
-    //     if (!confirm('Delete this order?')) {
-    //         return;
-    //     }
-    //     deleteForm.action = deleteBtn.dataset.route;
-    //     deleteForm.submit();
-    // });
-});
-</script>
+            // Bulk delete functionality commented out
+            // if (deleteAllBtn && bulkDeleteForm) {
+            //     deleteAllBtn.addEventListener('click', function (event) {
+            //         event.preventDefault();
+            //         if (deleteAllBtn.classList.contains('disabled')) {
+            //             return;
+            //         }
+            //         const selected = Array.from(document.querySelectorAll('#orderTable .is_open:checked'));
+            //         if (!selected.length || !confirm('Delete selected orders?')) {
+            //             return;
+            //         }
+            //         bulkDeleteForm.querySelectorAll('input[name="ids[]"]').forEach(el => el.remove());
+            //         selected.forEach(cb => {
+            //             const input = document.createElement('input');
+            //             input.type = 'hidden';
+            //             input.name = 'ids[]';
+            //             input.value = cb.value;
+            //             bulkDeleteForm.appendChild(input);
+            //         });
+            //         bulkDeleteForm.submit();
+            //     });
+            // }
+
+            // Single delete functionality commented out
+            // document.addEventListener('click', function (event) {
+            //     const deleteBtn = event.target.closest('.order-delete-btn');
+            //     if (!deleteBtn || !deleteForm) {
+            //         return;
+            //     }
+            //     event.preventDefault();
+            //     if (!confirm('Delete this order?')) {
+            //         return;
+            //     }
+            //     deleteForm.action = deleteBtn.dataset.route;
+            //     deleteForm.submit();
+            // });
+        });
+    </script>
 @endsection

@@ -239,8 +239,8 @@ class CouponController extends Controller
         // Additional validation: discount cannot exceed minimum order amount for Fix Price type
         if ($validated['discount_type'] === 'Fix Price') {
             $discount = (float)$validated['discount'];
-            $minimumOrder = $validated['minimum_order'] !== null && $validated['minimum_order'] !== '' 
-                ? (float)$validated['minimum_order'] 
+            $minimumOrder = $validated['minimum_order'] !== null && $validated['minimum_order'] !== ''
+                ? (float)$validated['minimum_order']
                 : null;
 
             if ($minimumOrder !== null && $discount > $minimumOrder) {

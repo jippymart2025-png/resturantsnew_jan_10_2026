@@ -15,15 +15,15 @@
         $currentPhoto = $vendorData->photo ?? $placeholderImageUrl;
         $galleryImages = $vendorData->photos ?? [];
         $adminCommissionSetting = $settings['AdminCommission']->fields ?? [];
-        
+
         // Format phone number for Razorpay
         // Razorpay expects: International format [country_code][phone_number] all digits
         // Example for India: 919876543217 (91 is country code, 9876543217 is 10-digit number)
-        
+
         // Try user's phone number first
         $phoneNumber = trim($user->phoneNumber ?? '');
         $countryCode = trim($user->countryCode ?? '+91');
-        
+
         // If user phone number is incomplete, try vendor's phone number as fallback
         $phoneDigits = preg_replace('/\D+/', '', $phoneNumber);
         if (empty($phoneDigits) || strlen($phoneDigits) < 10) {
@@ -34,13 +34,13 @@
                 $phoneDigits = preg_replace('/\D+/', '', $vendorPhone);
             }
         }
-        
+
         // Extract country code digits (remove + and any non-digits)
         $countryCodeDigits = preg_replace('/\D+/', '', $countryCode);
         if (empty($countryCodeDigits)) {
             $countryCodeDigits = '91'; // Default to India
         }
-        
+
         // Remove country code from phone if it's already included at the start
         if (!empty($phoneDigits) && !empty($countryCodeDigits)) {
             $countryCodeLength = strlen($countryCodeDigits);
@@ -50,7 +50,7 @@
                 $phoneDigits = substr($phoneDigits, $countryCodeLength);
             }
         }
-        
+
         // Format for Razorpay: country code + phone number (all digits, no spaces)
         // This is the E.164 format without the + sign
         // Only send if we have a valid complete phone number (at least 10 digits for India)
@@ -177,12 +177,12 @@ $workingHours = old(
                                     alertEl.classList.remove('fade');
                                     // Ensure visibility with inline styles (highest priority)
                                     alertEl.style.cssText += 'display: block !important; opacity: 1 !important; visibility: visible !important;';
-                                    
+
                                     // Scroll to top smoothly
                                     if (window.pageYOffset > 50) {
                                         window.scrollTo({ top: 0, behavior: 'smooth' });
                                     }
-                                    
+
                                     // Auto-dismiss after 8 seconds (optional)
                                     setTimeout(function() {
                                         if (alertEl && alertEl.parentNode) {
@@ -480,7 +480,7 @@ $workingHours = old(
                                                         data-description="{{ $plan->description ?? '' }}"
                                                         data-plan-type="{{ $plan->plan_type ?? ($plan->type ?? 'commission') }}"
                                                         data-zone="{{ $plan->zone ?? '' }}"
-                                                        {{ $vendor && $vendor->subscriptionPlanId == $plan->id ? 'selected' : '' }}>
+                                                    {{ $vendor && $vendor->subscriptionPlanId == $plan->id ? 'selected' : '' }}>
                                                     {{ $plan->name }} - {{ $currency['symbol'] }}{{ number_format($plan->price, 2) }} ({{ $plan->place }}%)
                                                 </option>
                                             @endforeach
@@ -630,12 +630,12 @@ $workingHours = old(
                                                    id="gst_agreement"
                                                    name="gst"
                                                    value="1"
-                                                   {{ old('gst', $vendorData->gst ?? 0) ? 'checked' : '' }}>
+                                                {{ old('gst', $vendorData->gst ?? 0) ? 'checked' : '' }}>
                                             <label class="form-check-label" for="gst_agreement">
                                                 <strong>{{ __('GST Agreement') }}</strong>
                                                 <small class="text-muted d-block">{{ __('I agree to GST terms. Platform will absorb 5% GST if checked.') }}</small>
                                             </label>
-                                    </div>
+                                        </div>
                                         <small class="form-text text-muted">
                                             {{ __('If checked: Platform absorbs 5% GST. If unchecked: GST (5%) will be added to customer price.') }}
                                         </small>
@@ -673,16 +673,16 @@ $workingHours = old(
                                     <img src="{{ $vendorData->photo ?? $placeholderImageUrl }}"
                                          alt="{{ trans('lang.restaurant_image') }}"
                                          class="rounded border mb-3"
-{{--                                         class="img-fluid rounded border mb-3"--}}
+                                         {{--                                         class="img-fluid rounded border mb-3"--}}
                                          id="restaurant-photo-preview"
                                          width="150px" height="150px"
                                          data-placeholder="{{ $placeholderImageUrl }}" >
                                     {{--<div class="d-flex justify-content-center gap-2">--}}
-{{--                                        <button type="button" class="btn btn-outline-danger btn-sm"--}}
-{{--                                                id="remove-photo-btn">--}}
-{{--                                            <i class="fa fa-times"></i> {{ __('Remove Photo') }}--}}
-{{--                                        </button>--}}
-{{--                                    </div>--}}
+                                    {{--                                        <button type="button" class="btn btn-outline-danger btn-sm"--}}
+                                    {{--                                                id="remove-photo-btn">--}}
+                                    {{--                                            <i class="fa fa-times"></i> {{ __('Remove Photo') }}--}}
+                                    {{--                                        </button>--}}
+                                    {{--                                    </div>--}}
                                 </div>
                                 <div class="col-md-8">
                                     <div class="form-group">
@@ -1153,29 +1153,30 @@ $workingHours = old(
                 });
                 updateZoneSlug();
             }
-            
+
             // Function to update subscription plans based on selected zone
             function updateSubscriptionPlansByZone() {
                 const zoneSelect = document.getElementById('zone');
                 const subscriptionPlanSelect = document.getElementById('subscription_plan_select');
                 const planDetailsContainer = document.getElementById('plan-details-container');
-                
+
                 if (!zoneSelect || !subscriptionPlanSelect) {
                     return;
                 }
-                
+
+
                 // Get zone_id from the zone dropdown (ID from zone table)
                 const zoneId = zoneSelect.value;
-                
+
                 // Store currently selected plan ID (if any) to try to preserve it
                 const currentSelectedPlanId = subscriptionPlanSelect.value;
-                
+
                 // Show loading state
                 subscriptionPlanSelect.disabled = true;
                 subscriptionPlanSelect.innerHTML = '<option value="">Loading plans...</option>';
-                
+
                 // Fetch subscription plans for the selected zone using zone_id
-                const url = '{{ route("restaurant.subscription-plans") }}' + 
+                const url = '{{ route("restaurant.subscription-plans") }}' +
                     (zoneId ? '?zone_id=' + encodeURIComponent(zoneId) : '');
                 fetch(url, {
                     method: 'GET',
@@ -1184,76 +1185,80 @@ $workingHours = old(
                         'Accept': 'application/json'
                     }
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.plans) {
-                        // Clear existing options
-                        subscriptionPlanSelect.innerHTML = '<option value="">{{ __('-- Select a subscription plan --') }}</option>';
-                        
-                        let foundPreviousSelection = false;
-                        
-                        // Add new options
-                        data.plans.forEach(function(plan) {
-                            const option = document.createElement('option');
-                            option.value = plan.id;
-                            option.setAttribute('data-name', plan.name || '');
-                            option.setAttribute('data-price', plan.price || 0);
-                            option.setAttribute('data-place', plan.place || 0);
-                            option.setAttribute('data-expiry-day', plan.expiryDay || '-1');
-                            option.setAttribute('data-description', plan.description || '');
-                            option.setAttribute('data-plan-type', plan.plan_type || (plan.type || 'commission'));
-                            option.setAttribute('data-zone', plan.zone || '');
-                            
-                            // Try to preserve previous selection if this plan matches
-                            if (currentSelectedPlanId && plan.id === currentSelectedPlanId) {
-                                option.selected = true;
-                                foundPreviousSelection = true;
+
+
+
+
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.plans) {
+                            // Clear existing options
+                            subscriptionPlanSelect.innerHTML = '<option value="">{{ __('-- Select a subscription plan --') }}</option>';
+
+                            let foundPreviousSelection = false;
+
+                            // Add new options
+                            data.plans.forEach(function(plan) {
+                                const option = document.createElement('option');
+                                option.value = plan.id;
+                                option.setAttribute('data-name', plan.name || '');
+                                option.setAttribute('data-price', plan.price || 0);
+                                option.setAttribute('data-place', plan.place || 0);
+                                option.setAttribute('data-expiry-day', plan.expiryDay || '-1');
+                                option.setAttribute('data-description', plan.description || '');
+                                option.setAttribute('data-plan-type', plan.plan_type || (plan.type || 'commission'));
+                                option.setAttribute('data-zone', plan.zone || '');
+
+                                // Try to preserve previous selection if this plan matches
+                                if (currentSelectedPlanId && plan.id === currentSelectedPlanId) {
+                                    option.selected = true;
+                                    foundPreviousSelection = true;
+                                }
+
+                                const currencySymbol = '{{ $currencyMeta['symbol'] ?? '₹' }}';
+                                const planType = plan.plan_type || (plan.place > 0 ? 'commission' : 'subscription');
+                                let planText = plan.name + ' - ' + currencySymbol + parseFloat(plan.price || 0).toFixed(2);
+
+                                // Only show commission percentage for commission plans
+                                if (planType === 'commission' && plan.place > 0) {
+                                    planText += ' (' + plan.place + '%)';
+                                }
+
+                                option.textContent = planText;
+
+                                subscriptionPlanSelect.appendChild(option);
+                            });
+
+                            // If previous selection was preserved, trigger change event to update plan details
+                            if (foundPreviousSelection && subscriptionPlanSelect.value) {
+                                subscriptionPlanSelect.dispatchEvent(new Event('change'));
+                            } else {
+                                // Hide plan details if previous selection not found
+                                if (planDetailsContainer) {
+                                    planDetailsContainer.style.display = 'none';
+                                }
                             }
-                            
-                            const currencySymbol = '{{ $currencyMeta['symbol'] ?? '₹' }}';
-                            const planType = plan.plan_type || (plan.place > 0 ? 'commission' : 'subscription');
-                            let planText = plan.name + ' - ' + currencySymbol + parseFloat(plan.price || 0).toFixed(2);
-                            
-                            // Only show commission percentage for commission plans
-                            if (planType === 'commission' && plan.place > 0) {
-                                planText += ' (' + plan.place + '%)';
-                            }
-                            
-                            option.textContent = planText;
-                            
-                            subscriptionPlanSelect.appendChild(option);
-                        });
-                        
-                        // If previous selection was preserved, trigger change event to update plan details
-                        if (foundPreviousSelection && subscriptionPlanSelect.value) {
-                            subscriptionPlanSelect.dispatchEvent(new Event('change'));
                         } else {
-                            // Hide plan details if previous selection not found
+                            subscriptionPlanSelect.innerHTML = '<option value="">{{ __('-- Select a subscription plan --') }}</option>';
                             if (planDetailsContainer) {
                                 planDetailsContainer.style.display = 'none';
                             }
+                            if (data.message) {
+                                console.warn('Failed to load subscription plans:', data.message);
+                            }
                         }
-                    } else {
+                    })
+                    .catch(error => {
+                        console.error('Error fetching subscription plans:', error);
                         subscriptionPlanSelect.innerHTML = '<option value="">{{ __('-- Select a subscription plan --') }}</option>';
                         if (planDetailsContainer) {
                             planDetailsContainer.style.display = 'none';
                         }
-                        if (data.message) {
-                            console.warn('Failed to load subscription plans:', data.message);
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching subscription plans:', error);
-                    subscriptionPlanSelect.innerHTML = '<option value="">{{ __('-- Select a subscription plan --') }}</option>';
-                    if (planDetailsContainer) {
-                        planDetailsContainer.style.display = 'none';
-                    }
-                    alert('{{ __('Failed to load subscription plans. Please refresh the page.') }}');
-                })
-                .finally(() => {
-                    subscriptionPlanSelect.disabled = false;
-                });
+                        alert('{{ __('Failed to load subscription plans. Please refresh the page.') }}');
+                    })
+                    .finally(() => {
+                        subscriptionPlanSelect.disabled = false;
+                    });
             }
 
             if (categorySelect && categorySearch) {
@@ -1412,39 +1417,39 @@ $workingHours = old(
                 document.getElementById('plan_commission_details_container').style.display = 'none';
                 document.getElementById('plan_details_info_container').style.display = 'none';
                 document.getElementById('plan_payment_info_container').style.display = 'none';
-                
+
                 if (!selectedOption || !selectedOption.value) {
                     // No plan selected, keep everything hidden
                     return;
                 }
-                
+
                 // Check if payment is completed for this plan
                 const selectedPlanId = selectedOption.value;
                 const vendorPlanId = '{{ ($vendor && $vendor->subscriptionPlanId) ? $vendor->subscriptionPlanId : "" }}';
                 const billStatus = '{{ ($vendor && isset($vendor->bill_status)) ? $vendor->bill_status : "" }}';
                 const isPaymentCompleted = (vendorPlanId === selectedPlanId && billStatus === 'paid');
-                
+
                 // Only show subscription details if payment is completed for this specific plan
                 if (!isPaymentCompleted) {
                     // Payment not completed, keep details hidden
                     return;
                 }
-                
+
                 // Payment is completed, show the details
                 // Get plan type
                 const planType = selectedOption.dataset.planType || (parseFloat(selectedOption.dataset.place || 0) > 0 ? 'commission' : 'subscription');
                 const isCommissionPlan = planType === 'commission';
                 const placeValue = parseFloat(selectedOption.dataset.place || 0);
-                
+
                 // Show subscription details container
                 document.getElementById('subscription_details_container').style.display = 'block';
                 document.getElementById('plan_commission_details_container').style.display = 'block';
                 document.getElementById('plan_details_info_container').style.display = 'block';
-                
+
                 // Update subscription status
                 document.getElementById('subscription_status_display').value = isCommissionPlan ? '{{ __('No') }}' : '{{ __('Yes') }}';
                 document.getElementById('commission_type_display').value = isCommissionPlan ? '{{ __('Commission') }}' : '{{ __('Subscription') }}';
-                
+
                 // Show/hide and update commission percentage or subscription slab
                 if (isCommissionPlan && placeValue > 0) {
                     // Show commission percentage
@@ -1458,15 +1463,15 @@ $workingHours = old(
                     const planPrice = parseFloat(selectedOption.dataset.price || 0);
                     document.getElementById('subscription_slab_display').value = '{{ $currencyMeta['symbol'] }}' + planPrice.toFixed(2);
                 }
-                
+
                 // Update plan details
                 document.getElementById('plan_name_display').value = selectedOption.dataset.name || '';
                 document.getElementById('plan_type_display').value = isCommissionPlan ? '{{ __('Commission Plan') }}' : '{{ __('Subscription Plan') }}';
-                
+
                 // Show payment info since payment is completed
                 document.getElementById('plan_payment_info_container').style.display = 'block';
                 document.getElementById('payment_status_display').value = 'paid';
-                
+
                 const expiryDay = selectedOption.dataset.expiryDay || '-1';
                 if (!isCommissionPlan && expiryDay !== '-1') {
                     document.getElementById('expiry_date_container').style.display = 'block';
@@ -1477,7 +1482,7 @@ $workingHours = old(
                     document.getElementById('expiry_date_container').style.display = 'none';
                 }
             }
-            
+
             if (subscriptionPlanSelect) {
                 // Initialize display on page load if plan is already selected and paid
                 const initialSelectedOption = subscriptionPlanSelect.options[subscriptionPlanSelect.selectedIndex];
@@ -1485,13 +1490,13 @@ $workingHours = old(
                     // Show plan details card if plan is selected (for payment)
                     const planType = initialSelectedOption.dataset.planType || (parseFloat(initialSelectedOption.dataset.place || 0) > 0 ? 'commission' : 'subscription');
                     const isCommissionPlan = planType === 'commission';
-                    
+
                     document.getElementById('plan-name-display').textContent = initialSelectedOption.dataset.name || '';
                     document.getElementById('plan-price-display').textContent = '{{ $currencyMeta['symbol'] }}' + parseFloat(initialSelectedOption.dataset.price || 0).toFixed(2);
                     document.getElementById('plan-description-display').textContent = initialSelectedOption.dataset.description || 'N/A';
                     const expiryDay = initialSelectedOption.dataset.expiryDay || '-1';
                     document.getElementById('plan-expiry-display').textContent = expiryDay === '-1' ? 'Unlimited' : expiryDay + ' days';
-                    
+
                     const commissionContainer = document.getElementById('plan-commission-container');
                     if (isCommissionPlan && parseFloat(initialSelectedOption.dataset.place || 0) > 0) {
                         document.getElementById('plan-place-display').textContent = initialSelectedOption.dataset.place || '0';
@@ -1499,14 +1504,14 @@ $workingHours = old(
                     } else {
                         commissionContainer.style.display = 'none';
                     }
-                    
+
                     document.getElementById('plan-type-display').textContent = isCommissionPlan ? '{{ __('Commission Plan') }}' : '{{ __('Subscription Plan') }}';
-                    
+
                     // Check if payment is completed
                     const vendorPlanId = '{{ ($vendor && $vendor->subscriptionPlanId) ? $vendor->subscriptionPlanId : "" }}';
                     const billStatus = '{{ ($vendor && isset($vendor->bill_status)) ? $vendor->bill_status : "" }}';
                     const isPaymentCompleted = (vendorPlanId === initialSelectedOption.value && billStatus === 'paid');
-                    
+
                     // Only show plan details card if payment is NOT completed (to allow payment)
                     // If payment is completed, hide the card and show subscription details instead
                     if (isPaymentCompleted) {
@@ -1516,27 +1521,27 @@ $workingHours = old(
                         planDetailsContainer.style.display = 'block';
                     }
                 }
-                
+
                 subscriptionPlanSelect.addEventListener('change', function() {
                     const selectedOption = this.options[this.selectedIndex];
-                    
+
                     // Check if payment is completed for this plan
                     const selectedPlanId = selectedOption ? selectedOption.value : '';
                     const vendorPlanId = '{{ ($vendor && $vendor->subscriptionPlanId) ? $vendor->subscriptionPlanId : "" }}';
                     const billStatus = '{{ ($vendor && isset($vendor->bill_status)) ? $vendor->bill_status : "" }}';
                     const isPaymentCompleted = (vendorPlanId === selectedPlanId && billStatus === 'paid');
-                    
+
                     if (selectedOption && selectedOption.value) {
                         // Show plan details
                         const planType = selectedOption.dataset.planType || (parseFloat(selectedOption.dataset.place || 0) > 0 ? 'commission' : 'subscription');
                         const isCommissionPlan = planType === 'commission';
-                        
+
                         document.getElementById('plan-name-display').textContent = selectedOption.dataset.name || '';
                         document.getElementById('plan-price-display').textContent = '{{ $currencyMeta['symbol'] }}' + parseFloat(selectedOption.dataset.price || 0).toFixed(2);
                         document.getElementById('plan-description-display').textContent = selectedOption.dataset.description || 'N/A';
                         const expiryDay = selectedOption.dataset.expiryDay || '-1';
                         document.getElementById('plan-expiry-display').textContent = expiryDay === '-1' ? 'Unlimited' : expiryDay + ' days';
-                        
+
                         // Show/hide commission percentage based on plan type
                         const commissionContainer = document.getElementById('plan-commission-container');
                         if (isCommissionPlan && parseFloat(selectedOption.dataset.place || 0) > 0) {
@@ -1545,10 +1550,10 @@ $workingHours = old(
                         } else {
                             commissionContainer.style.display = 'none';
                         }
-                        
+
                         // Show plan type
                         document.getElementById('plan-type-display').textContent = isCommissionPlan ? '{{ __('Commission Plan') }}' : '{{ __('Subscription Plan') }}';
-                        
+
                         // Show plan details card ONLY if payment is NOT completed (to allow payment)
                         // If payment is completed, hide the card and show subscription details instead
                         if (isPaymentCompleted) {
@@ -1559,7 +1564,7 @@ $workingHours = old(
                     } else {
                         planDetailsContainer.style.display = 'none';
                     }
-                    
+
                     // Update subscription details display (will only show if payment is completed)
                     updateSubscriptionDetailsDisplay(selectedOption);
                 });
@@ -1612,65 +1617,65 @@ $workingHours = old(
                         amount: amount
                     })
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success) {
-                        alert(data.message || '{{ __('Failed to create payment order. Please try again.') }}');
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success) {
+                            alert(data.message || '{{ __('Failed to create payment order. Please try again.') }}');
+                            proceedToPaymentBtn.disabled = false;
+                            proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
+                            return;
+                        }
+
+                        // If free plan, process directly
+                        if (data.order_id === null || amount <= 0) {
+                            processFreeSubscription(planId, planOption);
+                            return;
+                        }
+
+                        // Convert amount to paise (Razorpay uses smallest currency unit)
+                        const amountInPaise = Math.round(amount * 100);
+
+                        const options = {
+                            key: razorpayKey,
+                            amount: amountInPaise,
+                            currency: data.currency || 'INR',
+                            order_id: data.order_id,
+                            name: '{{ $vendor->title ?? "Restaurant" }}',
+                            description: planName,
+                            handler: function(response) {
+                                // Payment successful
+                                processPaymentSuccess(response, planId, planOption);
+                            },
+                            prefill: {
+                                name: '{{ $user->firstName ?? "" }} {{ $user->lastName ?? "" }}',
+                                email: '{{ $user->email ?? "" }}'@if(!empty($razorpayContact)),
+                                contact: '{{ $razorpayContact }}'@endif
+                            },
+                            theme: {
+                                color: '#3399cc'
+                            },
+                            modal: {
+                                ondismiss: function() {
+                                    console.log('Payment cancelled');
+                                    proceedToPaymentBtn.disabled = false;
+                                    proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
+                                }
+                            }
+                        };
+
+                        const razorpay = new Razorpay(options);
+                        razorpay.open();
+
+                        // Reset button state
                         proceedToPaymentBtn.disabled = false;
                         proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
-                        return;
-                    }
-
-                    // If free plan, process directly
-                    if (data.order_id === null || amount <= 0) {
-                        processFreeSubscription(planId, planOption);
-                        return;
-                    }
-
-                    // Convert amount to paise (Razorpay uses smallest currency unit)
-                    const amountInPaise = Math.round(amount * 100);
-
-                    const options = {
-                        key: razorpayKey,
-                        amount: amountInPaise,
-                        currency: data.currency || 'INR',
-                        order_id: data.order_id,
-                        name: '{{ $vendor->title ?? "Restaurant" }}',
-                        description: planName,
-                        handler: function(response) {
-                            // Payment successful
-                            processPaymentSuccess(response, planId, planOption);
-                        },
-                        prefill: {
-                            name: '{{ $user->firstName ?? "" }} {{ $user->lastName ?? "" }}',
-                            email: '{{ $user->email ?? "" }}'@if(!empty($razorpayContact)),
-                            contact: '{{ $razorpayContact }}'@endif
-                        },
-                        theme: {
-                            color: '#3399cc'
-                        },
-                        modal: {
-                            ondismiss: function() {
-                                console.log('Payment cancelled');
-                                proceedToPaymentBtn.disabled = false;
-                                proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
-                            }
-                        }
-                    };
-
-                    const razorpay = new Razorpay(options);
-                    razorpay.open();
-                    
-                    // Reset button state
-                    proceedToPaymentBtn.disabled = false;
-                    proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('{{ __('An error occurred. Please try again.') }}');
-                    proceedToPaymentBtn.disabled = false;
-                    proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
-                });
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('{{ __('An error occurred. Please try again.') }}');
+                        proceedToPaymentBtn.disabled = false;
+                        proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
+                    });
             }
 
             function processPaymentSuccess(paymentResponse, planId, planOption) {
@@ -1697,23 +1702,23 @@ $workingHours = old(
                         expiry_day: planOption.dataset.expiryDay
                     })
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('{{ __('Payment successful! Subscription activated.') }}');
-                        location.reload();
-                    } else {
-                        alert(data.message || '{{ __('Payment processing failed. Please try again.') }}');
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('{{ __('Payment successful! Subscription activated.') }}');
+                            location.reload();
+                        } else {
+                            alert(data.message || '{{ __('Payment processing failed. Please try again.') }}');
+                            proceedToPaymentBtn.disabled = false;
+                            proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('{{ __('An error occurred. Please try again.') }}');
                         proceedToPaymentBtn.disabled = false;
                         proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('{{ __('An error occurred. Please try again.') }}');
-                    proceedToPaymentBtn.disabled = false;
-                    proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
-                });
+                    });
             }
 
             function processFreeSubscription(planId, planOption) {
@@ -1739,23 +1744,23 @@ $workingHours = old(
                         is_free: true
                     })
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('{{ __('Subscription activated successfully!') }}');
-                        location.reload();
-                    } else {
-                        alert(data.message || '{{ __('Subscription activation failed. Please try again.') }}');
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('{{ __('Subscription activated successfully!') }}');
+                            location.reload();
+                        } else {
+                            alert(data.message || '{{ __('Subscription activation failed. Please try again.') }}');
+                            proceedToPaymentBtn.disabled = false;
+                            proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('{{ __('An error occurred. Please try again.') }}');
                         proceedToPaymentBtn.disabled = false;
                         proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('{{ __('An error occurred. Please try again.') }}');
-                    proceedToPaymentBtn.disabled = false;
-                    proceedToPaymentBtn.innerHTML = '<i class="fa fa-credit-card mr-2"></i> {{ __('Proceed to Payment') }}';
-                });
+                    });
             }
         })();
     </script>

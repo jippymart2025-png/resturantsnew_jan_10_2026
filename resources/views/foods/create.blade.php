@@ -1,49 +1,4 @@
-{{--@extends('layouts.app')--}}
 
-{{--@section('content')--}}
-{{--<div class="page-wrapper">--}}
-{{--    <div class="row page-titles">--}}
-{{--        <div class="col-md-6 align-self-center">--}}
-{{--            <h3 class="text-themecolor">Create Food</h3>--}}
-{{--        </div>--}}
-{{--        <div class="col-md-6 align-self-center">--}}
-{{--            <ol class="breadcrumb">--}}
-{{--                <li class="breadcrumb-item"><a href="{{ route('home') }}">Dashboard</a></li>--}}
-{{--                <li class="breadcrumb-item"><a href="{{ route('foods') }}">Foods</a></li>--}}
-{{--                <li class="breadcrumb-item active">Create</li>--}}
-{{--            </ol>--}}
-{{--        </div>--}}
-{{--    </div>--}}
-
-{{--    <div class="container-fluid">--}}
-{{--        <div class="card">--}}
-{{--            <div class="card-header d-flex justify-content-between align-items-center">--}}
-{{--                <h4 class="btn btn-primary mb-0">Food Details</h4>--}}
-{{--                <a href="{{ route('foods') }}" class="btn btn-outline-secondary btn-sm">--}}
-{{--                    <i class="fa fa-arrow-left mr-1"></i> Back to list--}}
-{{--                </a>--}}
-{{--            </div>--}}
-{{--        <div class="card-body">--}}
-{{--                <form method="POST" action="{{ route('foods.store') }}" enctype="multipart/form-data">--}}
-{{--                    @csrf--}}
-{{--                    @include('foods.partials.form', [--}}
-{{--                        'food' => null,--}}
-{{--                        'categories' => $categories,--}}
-{{--                        'extraPhotos' => [],--}}
-{{--                        'addOns' => [],--}}
-{{--                        'specifications' => [],--}}
-{{--                        'placeholderImage' => $placeholderImage--}}
-{{--                    ])--}}
-{{--                </form>--}}
-{{--            </div>--}}
-{{--        </div>--}}
-{{--    </div>--}}
-{{--</div>--}}
-{{--@endsection--}}
-
-{{--@section('scripts')--}}
-{{--    @include('foods.partials.form_scripts')--}}
-{{--@endsection--}}
 @extends('layouts.app')
 
 @section('content')
@@ -111,9 +66,9 @@
                                            placeholder="Search and select a category..."
                                            autocomplete="off">
                                     <input type="hidden" id="category-id-hidden" value="">
-                                    
+
                                     <!-- Autocomplete dropdown -->
-                                    <div id="category-autocomplete-dropdown" 
+                                    <div id="category-autocomplete-dropdown"
                                          class="category-autocomplete-dropdown"
                                          style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ced4da; border-top: none; border-radius: 0 0 0.25rem 0.25rem; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                                         <!-- Options will be populated by JavaScript -->
@@ -198,6 +153,7 @@
                                 <th style="width: 200px;">Calculation</th>
                                 <th style="width: 120px;">Discount Price</th>
                                 <th style="width: 200px;">Add-ons</th>
+                                <th style="width: 100px;">Options</th>
                                 <th style="width: 100px;">Published</th>
                                 <th style="width: 100px;">Available</th>
                                 <th style="width: 150px;">Available Days</th>
@@ -270,7 +226,7 @@
         const planType = '{{ $planType ?? 'commission' }}';
         const gstAgreed = {{ $gstAgreed ? 'true' : 'false' }};
         const gstPercentage = 5; // 5% GST
-        
+
         document.addEventListener('DOMContentLoaded', function() {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             let selectedProducts = {}; // Store selected products with their custom data
@@ -288,19 +244,19 @@
             const categoryAutocomplete = document.getElementById('category-autocomplete');
             const categoryAutocompleteDropdown = document.getElementById('category-autocomplete-dropdown');
             const categoryIdHidden = document.getElementById('category-id-hidden');
-            
+
             // Store all categories from the original select dropdown data
             const allCategories = [
-                @foreach ($categories as $category)
+                    @foreach ($categories as $category)
                 {
                     id: '{{ $category->id }}',
                     title: '{{ addslashes($category->title) }}',
                     photo: '{{ $category->photo ?? '' }}',
                     searchText: '{{ addslashes(mb_strtolower($category->title)) }}'
                 }{{ !$loop->last ? ',' : '' }}
-                @endforeach
+                    @endforeach
             ];
-            
+
             let filteredCategories = [];
             let selectedIndex = -1;
             let isDropdownOpen = false;
@@ -311,7 +267,7 @@
                 if (term === '') {
                     return allCategories;
                 }
-                return allCategories.filter(category => 
+                return allCategories.filter(category =>
                     category.searchText.includes(term)
                 );
             }
@@ -319,7 +275,7 @@
             // Render dropdown options
             function renderDropdown(categories) {
                 categoryAutocompleteDropdown.innerHTML = '';
-                
+
                 if (categories.length === 0) {
                     const noResults = document.createElement('div');
                     noResults.className = 'category-autocomplete-item';
@@ -329,7 +285,7 @@
                     categoryAutocompleteDropdown.appendChild(noResults);
                     return;
                 }
-                
+
                 categories.forEach((category, index) => {
                     const item = document.createElement('div');
                     item.className = 'category-autocomplete-item';
@@ -340,23 +296,23 @@
                     item.dataset.categoryId = category.id;
                     item.dataset.categoryTitle = category.title;
                     item.dataset.categoryPhoto = category.photo;
-                    
+
                     // Hover effect
                     item.addEventListener('mouseenter', function() {
                         this.style.backgroundColor = '#f8f9fa';
                         selectedIndex = index;
                         updateSelectedItem();
                     });
-                    
+
                     item.addEventListener('mouseleave', function() {
                         this.style.backgroundColor = '';
                     });
-                    
+
                     // Click to select
                     item.addEventListener('click', function() {
                         selectCategory(category.id, category.title, category.photo);
                     });
-                    
+
                     categoryAutocompleteDropdown.appendChild(item);
                 });
             }
@@ -380,7 +336,7 @@
                 categoryAutocompleteDropdown.style.display = 'none';
                 isDropdownOpen = false;
                 selectedIndex = -1;
-                
+
                 // Trigger category selection (existing functionality)
                 triggerCategorySelection(categoryId, categoryTitle);
             }
@@ -390,7 +346,7 @@
                 const searchTerm = this.value;
                 filteredCategories = filterCategories(searchTerm);
                 renderDropdown(filteredCategories);
-                
+
                 if (filteredCategories.length > 0 && searchTerm.length > 0) {
                     categoryAutocompleteDropdown.style.display = 'block';
                     isDropdownOpen = true;
@@ -428,10 +384,10 @@
             // Keyboard navigation
             categoryAutocomplete.addEventListener('keydown', function(e) {
                 if (!isDropdownOpen) return;
-                
+
                 const items = categoryAutocompleteDropdown.querySelectorAll('.category-autocomplete-item:not([style*="color: #6c757d"])');
                 if (items.length === 0) return;
-                
+
                 switch(e.key) {
                     case 'ArrowDown':
                         e.preventDefault();
@@ -465,7 +421,7 @@
 
             // Close dropdown when clicking outside
             document.addEventListener('click', function(e) {
-                if (!categoryAutocomplete.contains(e.target) && 
+                if (!categoryAutocomplete.contains(e.target) &&
                     !categoryAutocompleteDropdown.contains(e.target)) {
                     categoryAutocompleteDropdown.style.display = 'none';
                     isDropdownOpen = false;
@@ -477,7 +433,7 @@
             function triggerCategorySelection(categoryId = null, categoryName = null) {
                 const id = categoryId || categoryIdHidden.value;
                 const name = categoryName || categoryAutocomplete.value;
-                
+
                 if (id && name) {
                     loadProductsForCategory(id, name, 1, 10, '');
                 } else {
@@ -678,6 +634,9 @@
                     const isSelected = selectedProducts.hasOwnProperty(productId);
                     const isExisting = product.is_existing || false;
 
+
+
+
                     // Determine row class: selected (blue) overrides existing (green)
                     let rowClass = 'product-row';
                     if (isSelected) {
@@ -692,17 +651,30 @@
                     if (isExisting) {
                         row.setAttribute('data-is-existing', 'true');
                     }
+                    if (isExisting && product.vendor_product_id) {
+                        row.setAttribute('data-vendor-product-id', product.vendor_product_id);
+                    }
+
 
                     row.innerHTML = `
-                <td class="text-center" style="vertical-align: middle; padding: 10px !important; min-width: 60px; width: 60px;">
-                    <input type="checkbox"
-                           class="form-check-input product-checkbox"
-                           id="product-checkbox-${productId}"
-                           data-product-id="${productId}"
-                           ${isSelected ? 'checked' : ''}
-                           style="position: relative !important; left: auto !important; top: auto !important; width: 20px !important; height: 20px !important; cursor: pointer !important; opacity: 1 !important; visibility: visible !important; display: block !important; margin: 0 auto !important; -webkit-appearance: checkbox !important; -moz-appearance: checkbox !important; appearance: checkbox !important; z-index: 10 !important;">
-                    ${isExisting ? '<small class="d-block mt-1 text-success" style="font-size: 0.7rem; font-weight: 600;">✓ Added</small>' : ''}
-                </td>
+              <td class="text-center" style="vertical-align: middle; padding: 10px !important; min-width: 60px; width: 60px;">
+    <input type="checkbox"
+    class="form-check-input product-checkbox"
+    data-product-id="${productId}"
+
+    ${isSelected ? 'checked' : ''}
+     onchange="toggleProductSelection(${productId})"
+
+        style="position: relative !important;
+               width: 20px !important;
+               height: 20px !important;
+               cursor: pointer !important;
+               margin: 0 auto !important;
+               display: block !important;">
+    ${isExisting ? '<small class="d-block mt-1 text-success" style="font-size:0.7rem;font-weight:600;">✓ Added</small>' : ''}
+</td>
+
+
                 <td>
                     <img src="${product.photo || '{{ $placeholderImage }}'}"
                          alt="${product.name}"
@@ -732,48 +704,48 @@
                            class="form-control form-control-sm product-online-price"
                            data-product-id="${productId}"
                            value="${(() => {
-                               // If product is selected and has online_price, use it
-                               if (isSelected && selectedProducts[productId] && selectedProducts[productId].online_price) {
-                                   return selectedProducts[productId].online_price;
-                               }
-                               // If product exists and has stored vendor_price, use it (preserves manual edits)
-                               if (isExisting && product.vendor_price && parseFloat(product.vendor_price) > 0) {
-                                   return parseFloat(product.vendor_price).toFixed(2);
-                               }
-                               // Otherwise, calculate from merchant price only if no stored value
-                               const merchantPrice = isSelected && selectedProducts[productId] && selectedProducts[productId].merchant_price ? parseFloat(selectedProducts[productId].merchant_price) : (isExisting && product.vendor_merchantPrice ? parseFloat(product.vendor_merchantPrice) : 0);
-                               if (merchantPrice > 0) {
-                                   const hasSub = typeof hasSubscription !== 'undefined' ? hasSubscription : false;
-                                   const applyPercent = typeof applyPercentage !== 'undefined' ? applyPercentage : 30;
-                                   const planTypeValue = typeof planType !== 'undefined' ? planType : 'commission';
-                                   const gstAgreedValue = typeof gstAgreed !== 'undefined' ? gstAgreed : false;
-                                   const gstPercent = 5;
-                                   
-                                   const isCommissionBased = !hasSub || planTypeValue === 'commission';
-                                   let onlinePrice = 0;
-                                   
-                                   if (isCommissionBased) {
-                                       const commission = merchantPrice * (applyPercent / 100);
-                                       const priceBeforeGst = merchantPrice + commission;
-                                       if (gstAgreedValue) {
-                                           onlinePrice = priceBeforeGst;
-                                       } else {
-                                           // GST is 5% of Merchant Price (not of price before GST)
-                                           const gstAmount = merchantPrice * (gstPercent / 100);
-                                           onlinePrice = priceBeforeGst + gstAmount;
-                                       }
-                                   } else {
-                                       if (gstAgreedValue) {
-                                           onlinePrice = merchantPrice;
-                                       } else {
-                                           onlinePrice = merchantPrice + (merchantPrice * (gstPercent / 100));
-                                       }
-                                   }
-                                   return onlinePrice.toFixed(2);
-                               }
-                               // No merchant price, return empty
-                               return '';
-                           })()}"
+                        // If product is selected and has online_price, use it
+                        if (isSelected && selectedProducts[productId] && selectedProducts[productId].online_price) {
+                            return selectedProducts[productId].online_price;
+                        }
+                        // If product exists and has stored vendor_price, use it (preserves manual edits)
+                        if (isExisting && product.vendor_price && parseFloat(product.vendor_price) > 0) {
+                            return parseFloat(product.vendor_price).toFixed(2);
+                        }
+                        // Otherwise, calculate from merchant price only if no stored value
+                        const merchantPrice = isSelected && selectedProducts[productId] && selectedProducts[productId].merchant_price ? parseFloat(selectedProducts[productId].merchant_price) : (isExisting && product.vendor_merchantPrice ? parseFloat(product.vendor_merchantPrice) : 0);
+                        if (merchantPrice > 0) {
+                            const hasSub = typeof hasSubscription !== 'undefined' ? hasSubscription : false;
+                            const applyPercent = typeof applyPercentage !== 'undefined' ? applyPercentage : 30;
+                            const planTypeValue = typeof planType !== 'undefined' ? planType : 'commission';
+                            const gstAgreedValue = typeof gstAgreed !== 'undefined' ? gstAgreed : false;
+                            const gstPercent = 5;
+
+                            const isCommissionBased = !hasSub || planTypeValue === 'commission';
+                            let onlinePrice = 0;
+
+                            if (isCommissionBased) {
+                                const commission = merchantPrice * (applyPercent / 100);
+                                const priceBeforeGst = merchantPrice + commission;
+                                if (gstAgreedValue) {
+                                    onlinePrice = priceBeforeGst;
+                                } else {
+                                    // GST is 5% of Merchant Price (not of price before GST)
+                                    const gstAmount = merchantPrice * (gstPercent / 100);
+                                    onlinePrice = priceBeforeGst + gstAmount;
+                                }
+                            } else {
+                                if (gstAgreedValue) {
+                                    onlinePrice = merchantPrice;
+                                } else {
+                                    onlinePrice = merchantPrice + (merchantPrice * (gstPercent / 100));
+                                }
+                            }
+                            return onlinePrice.toFixed(2);
+                        }
+                        // No merchant price, return empty
+                        return '';
+                    })()}"
                            placeholder="0.00"
                            onchange="updateProductData(${productId}, 'online_price', this.value)"
                            oninput="updateProductData(${productId}, 'online_price', this.value)"
@@ -783,51 +755,51 @@
                 <td class="price-calculation-cell" style="font-size: 0.75rem; max-width: 200px;">
                     <div class="price-calculation" data-product-id="${productId}" style="white-space: normal; line-height: 1.4;">
                         ${(() => {
-                            const merchantPrice = isSelected && selectedProducts[productId] && selectedProducts[productId].merchant_price ? parseFloat(selectedProducts[productId].merchant_price) : (isExisting && product.vendor_merchantPrice ? parseFloat(product.vendor_merchantPrice) : 0);
-                            if (merchantPrice > 0) {
-                                const hasSub = typeof hasSubscription !== 'undefined' ? hasSubscription : false;
-                                const applyPercent = typeof applyPercentage !== 'undefined' ? applyPercentage : 30;
-                                const planTypeValue = typeof planType !== 'undefined' ? planType : 'commission';
-                                const gstAgreedValue = typeof gstAgreed !== 'undefined' ? gstAgreed : false;
-                                const gstPercent = 5;
-                                
-                                const isCommissionBased = !hasSub || planTypeValue === 'commission';
-                                let calcText = '<strong>Calc:</strong><br>';
-                                calcText += 'M: ₹' + merchantPrice.toFixed(2) + '<br>';
-                                
-                                if (isCommissionBased) {
-                                    const commission = merchantPrice * (applyPercent / 100);
-                                    const priceBeforeGst = merchantPrice + commission;
-                                    calcText += 'Type: Comm (' + applyPercent + '%)<br>';
-                                    calcText += 'Comm: ₹' + commission.toFixed(2) + '<br>';
-                                    calcText += 'B4 GST: ₹' + priceBeforeGst.toFixed(2) + '<br>';
-                                    
-                                    if (gstAgreedValue) {
-                                        calcText += '<span class="text-success">GST: Absorbed</span><br>';
-                                        calcText += '<strong>Online: ₹' + priceBeforeGst.toFixed(2) + '</strong>';
-                                    } else {
-                                        // GST is 5% of Merchant Price (not of price before GST)
-                                        const gstAmount = merchantPrice * (gstPercent / 100);
-                                        const finalPrice = priceBeforeGst + gstAmount;
-                                        calcText += '<span class="text-warning">GST: +₹' + gstAmount.toFixed(2) + '</span><br>';
-                                        calcText += '<strong>Online: ₹' + finalPrice.toFixed(2) + '</strong>';
-                                    }
+                        const merchantPrice = isSelected && selectedProducts[productId] && selectedProducts[productId].merchant_price ? parseFloat(selectedProducts[productId].merchant_price) : (isExisting && product.vendor_merchantPrice ? parseFloat(product.vendor_merchantPrice) : 0);
+                        if (merchantPrice > 0) {
+                            const hasSub = typeof hasSubscription !== 'undefined' ? hasSubscription : false;
+                            const applyPercent = typeof applyPercentage !== 'undefined' ? applyPercentage : 30;
+                            const planTypeValue = typeof planType !== 'undefined' ? planType : 'commission';
+                            const gstAgreedValue = typeof gstAgreed !== 'undefined' ? gstAgreed : false;
+                            const gstPercent = 5;
+
+                            const isCommissionBased = !hasSub || planTypeValue === 'commission';
+                            let calcText = '<strong>Calc:</strong><br>';
+                            calcText += 'M: ₹' + merchantPrice.toFixed(2) + '<br>';
+
+                            if (isCommissionBased) {
+                                const commission = merchantPrice * (applyPercent / 100);
+                                const priceBeforeGst = merchantPrice + commission;
+                                calcText += 'Type: Comm (' + applyPercent + '%)<br>';
+                                calcText += 'Comm: ₹' + commission.toFixed(2) + '<br>';
+                                calcText += 'B4 GST: ₹' + priceBeforeGst.toFixed(2) + '<br>';
+
+                                if (gstAgreedValue) {
+                                    calcText += '<span class="text-success">GST: Absorbed</span><br>';
+                                    calcText += '<strong>Online: ₹' + priceBeforeGst.toFixed(2) + '</strong>';
                                 } else {
-                                    calcText += 'Type: Sub (No Comm)<br>';
-                                    if (gstAgreedValue) {
-                                        calcText += '<span class="text-success">GST: Absorbed</span><br>';
-                                        calcText += '<strong>Online: ₹' + merchantPrice.toFixed(2) + '</strong>';
-                                    } else {
-                                        const gstAmount = merchantPrice * (gstPercent / 100);
-                                        const finalPrice = merchantPrice + gstAmount;
-                                        calcText += '<span class="text-warning">GST: +₹' + gstAmount.toFixed(2) + '</span><br>';
-                                        calcText += '<strong>Online: ₹' + finalPrice.toFixed(2) + '</strong>';
-                                    }
+                                    // GST is 5% of Merchant Price (not of price before GST)
+                                    const gstAmount = merchantPrice * (gstPercent / 100);
+                                    const finalPrice = priceBeforeGst + gstAmount;
+                                    calcText += '<span class="text-warning">GST: +₹' + gstAmount.toFixed(2) + '</span><br>';
+                                    calcText += '<strong>Online: ₹' + finalPrice.toFixed(2) + '</strong>';
                                 }
-                                return calcText;
+                            } else {
+                                calcText += 'Type: Sub (No Comm)<br>';
+                                if (gstAgreedValue) {
+                                    calcText += '<span class="text-success">GST: Absorbed</span><br>';
+                                    calcText += '<strong>Online: ₹' + merchantPrice.toFixed(2) + '</strong>';
+                                } else {
+                                    const gstAmount = merchantPrice * (gstPercent / 100);
+                                    const finalPrice = merchantPrice + gstAmount;
+                                    calcText += '<span class="text-warning">GST: +₹' + gstAmount.toFixed(2) + '</span><br>';
+                                    calcText += '<strong>Online: ₹' + finalPrice.toFixed(2) + '</strong>';
+                                }
                             }
-                            return '<small class="text-muted">Enter merchant price to see calculation</small>';
-                        })()}
+                            return calcText;
+                        }
+                        return '<small class="text-muted">Enter merchant price to see calculation</small>';
+                    })()}
                     </div>
                 </td>
                 <td>
@@ -846,15 +818,19 @@
                         <div class="addons-container" data-product-id="${productId}" style="max-height: 150px; overflow-y: auto;">
                             ${renderAddons(productId, isExisting && !isSelected ? product : null)}
                         </div>
-                        <button type="button"
-                                class="btn btn-sm btn-outline-primary btn-block mt-1"
-                                onclick="addAddonRow(${productId})"
-                                ${!isSelected ? 'disabled' : ''}
-                                style="font-size: 0.75rem;">
-                            <i class="fa fa-plus"></i> Add Addon
-                        </button>
+                      <button type="button"
+                       class="btn btn-sm btn-outline-primary btn-block mt-1"
+                       onclick="addAddonRow(${productId})"
+                       ${!isSelected ? 'disabled' : ''}
+                       style="font-size: 0.75rem;">
+                       <i class="fa fa-plus"></i> Add Addon
+                       </button>
                     </div>
                 </td>
+                <td style="vertical-align: middle;">
+                 ${renderOptions(product)}
+                </td>
+
                 <td class="text-center" style="vertical-align: middle;">
                     <input type="checkbox"
                            class="form-check-input product-publish"
@@ -865,86 +841,82 @@
                            style="position: relative !important; left: auto !important; top: auto !important; width: 20px !important; height: 20px !important; cursor: ${!isSelected ? 'not-allowed' : 'pointer'} !important; display: block !important; margin: 0 auto !important; opacity: ${!isSelected ? '0.5' : '1'} !important; visibility: visible !important; -webkit-appearance: checkbox !important; -moz-appearance: checkbox !important; appearance: checkbox !important; z-index: 10 !important;">
                 </td>
                 <td class="text-center" style="vertical-align: middle;">
-                    <input type="checkbox"
-                           class="form-check-input product-available"
-                           data-product-id="${productId}"
-                           ${isSelected ? (selectedProducts[productId].isAvailable ? 'checked' : '') : (isExisting && product.vendor_isAvailable !== undefined ? (product.vendor_isAvailable ? 'checked' : '') : 'checked')}
-                           onchange="updateProductData(${productId}, 'isAvailable', this.checked)"
-                           ${!isSelected ? 'disabled' : ''}
+                   <input type="checkbox"
+                        class="form-check-input product-available"
+                            data-product-id="${productId}"
+                          ${isSelected ? (selectedProducts[productId].isAvailable ? 'checked' : '')
+                        : (isExisting && product.vendor_isAvailable !== undefined
+                            ? (product.vendor_isAvailable ? 'checked' : '')
+                            : 'checked')}
+                            onchange="updateProductData(${productId}, 'isAvailable', this.checked)"
+                            ${!(isSelected || isExisting) ? 'disabled' : ''}
                            style="position: relative !important; left: auto !important; top: auto !important; width: 20px !important; height: 20px !important; cursor: ${!isSelected ? 'not-allowed' : 'pointer'} !important; display: block !important; margin: 0 auto !important; opacity: ${!isSelected ? '0.5' : '1'} !important; visibility: visible !important; -webkit-appearance: checkbox !important; -moz-appearance: checkbox !important; appearance: checkbox !important; z-index: 10 !important;">
                 </td>
                 <td style="vertical-align: middle;">
                     <div class="availability-days-cell" data-product-id="${productId}">
                         ${renderAvailabilityDays(productId, (() => {
-                            if (isSelected && selectedProducts[productId] && selectedProducts[productId].available_days) {
-                                return selectedProducts[productId].available_days;
-                            }
-                            if (isExisting && product.vendor_available_days) {
-                                try {
-                                    return Array.isArray(product.vendor_available_days) ? product.vendor_available_days : JSON.parse(product.vendor_available_days || '[]');
-                                } catch(e) { return []; }
-                            }
-                            return [];
-                        })())}
+                        if (isSelected && selectedProducts[productId] && selectedProducts[productId].available_days) {
+                            return selectedProducts[productId].available_days;
+                        }
+                        if (isExisting && product.vendor_available_days) {
+                            try {
+                                return Array.isArray(product.vendor_available_days) ? product.vendor_available_days : JSON.parse(product.vendor_available_days || '[]');
+                            } catch(e) { return []; }
+                        }
+                        return [];
+                    })())}
                     </div>
                 </td>
                 <td style="vertical-align: middle;">
                     <div class="availability-timings-cell" data-product-id="${productId}">
                         ${renderAvailabilityTimings(productId, (() => {
-                            if (isSelected && selectedProducts[productId] && selectedProducts[productId].available_timings) {
-                                return selectedProducts[productId].available_timings;
-                            }
-                            if (isExisting && product.vendor_available_timings) {
-                                try {
-                                    const rawTimings = typeof product.vendor_available_timings === 'object' ? product.vendor_available_timings : JSON.parse(product.vendor_available_timings || '{}');
-                                    // Convert new format to day-based format for display
-                                    if (Array.isArray(rawTimings) && rawTimings[0] && rawTimings[0].day) {
-                                        const converted = {};
-                                        rawTimings.forEach(item => {
-                                            if (item.day && item.timeslot) {
-                                                converted[item.day] = item.timeslot;
-                                            }
-                                        });
-                                        return converted;
-                                    }
-                                    // Old format - convert
-                                    if (!Array.isArray(rawTimings)) {
-                                        const converted = {};
-                                        Object.keys(rawTimings).forEach(day => {
-                                            const slots = rawTimings[day];
-                                            if (Array.isArray(slots)) {
-                                                converted[day] = slots.map(slot => {
-                                                    if (typeof slot === 'string' && slot.includes('-')) {
-                                                        const parts = slot.split('-');
-                                                        return { from: parts[0].trim(), to: parts[1]?.trim() || '' };
-                                                    }
-                                                    return typeof slot === 'object' ? slot : { from: '', to: '' };
-                                                });
-                                            }
-                                        });
-                                        return converted;
-                                    }
-                                    return rawTimings;
-                                } catch(e) { return {}; }
-                            }
-                            return {};
-                        })())}
+                        if (isSelected && selectedProducts[productId] && selectedProducts[productId].available_timings) {
+                            return selectedProducts[productId].available_timings;
+                        }
+                        if (isExisting && product.vendor_available_timings) {
+                            try {
+                                const rawTimings = typeof product.vendor_available_timings === 'object' ? product.vendor_available_timings : JSON.parse(product.vendor_available_timings || '{}');
+                                // Convert new format to day-based format for display
+                                if (Array.isArray(rawTimings) && rawTimings[0] && rawTimings[0].day) {
+                                    const converted = {};
+                                    rawTimings.forEach(item => {
+                                        if (item.day && item.timeslot) {
+                                            converted[item.day] = item.timeslot;
+                                        }
+                                    });
+                                    return converted;
+                                }
+                                // Old format - convert
+                                if (!Array.isArray(rawTimings)) {
+                                    const converted = {};
+                                    Object.keys(rawTimings).forEach(day => {
+                                        const slots = rawTimings[day];
+                                        if (Array.isArray(slots)) {
+                                            converted[day] = slots.map(slot => {
+                                                if (typeof slot === 'string' && slot.includes('-')) {
+                                                    const parts = slot.split('-');
+                                                    return { from: parts[0].trim(), to: parts[1]?.trim() || '' };
+                                                }
+                                                return typeof slot === 'object' ? slot : { from: '', to: '' };
+                                            });
+                                        }
+                                    });
+                                    return converted;
+                                }
+                                return rawTimings;
+                            } catch(e) { return {}; }
+                        }
+                        return {};
+                    })())}
                     </div>
                 </td>
             `;
                     container.appendChild(row);
 
-                    // Attach event listener after appending to DOM
-                    const checkbox = row.querySelector('.product-checkbox');
-                    if (checkbox) {
-                        checkbox.addEventListener('change', function() {
-                            toggleProductSelection(productId);
-                        });
-                    }
 
-                    // Attach addon event handlers after rendering
-                    attachAddonEventHandlers(productId);
-                });
+
+
+                })
 
                 // Recalculate online prices for all products with merchant prices after rendering
                 products.forEach(product => {
@@ -972,13 +944,9 @@
                         const isChecked = this.checked;
                         checkboxes.forEach(cb => {
                             cb.checked = isChecked;
-                            const productId = parseInt(cb.dataset.productId);
-                            if (isChecked && !selectedProducts[productId]) {
-                                toggleProductSelection(productId);
-                            } else if (!isChecked && selectedProducts[productId]) {
-                                toggleProductSelection(productId);
-                            }
+                            cb.dispatchEvent(new Event('change', { bubbles: true }));
                         });
+
                     });
                 }
             }
@@ -1004,10 +972,15 @@
                     }
                 }
 
-                // If no addons to render, return empty row
-                if (addonsToRender.length === 0) {
-                    return '<div class="addon-row mb-1 d-flex align-items-center"><input type="text" class="form-control form-control-sm mb-1 addon-title" placeholder="Addon title" style="font-size: 0.75rem; flex: 1; margin-right: 5px;"><input type="number" step="0.01" class="form-control form-control-sm addon-price" placeholder="Price" style="font-size: 0.75rem; width: 70px; margin-right: 5px;"><button type="button" class="btn btn-sm btn-link text-danger p-0" style="font-size: 0.75rem; visibility: hidden;"><i class="fa fa-times"></i></button></div>';
+                // Show ONE empty row ONLY if product is selected AND addons array truly empty
+                if (
+                    addonsToRender.length === 0 &&
+                    selectedProducts[productId]
+                ) {
+                    addonsToRender.push({ title: '', price: '' });
                 }
+
+
 
                 let html = '';
                 addonsToRender.forEach((addon, index) => {
@@ -1038,15 +1011,62 @@
                 return html || '<div class="addon-row mb-1"><input type="text" class="form-control form-control-sm mb-1 addon-title" placeholder="Addon title" style="font-size: 0.75rem;"><input type="number" step="0.01" class="form-control form-control-sm addon-price" placeholder="Price" style="font-size: 0.75rem;"></div>';
             }
 
+            function renderOptions(product) {
+                const productId = product.id;
+
+                // Priority: selected → vendor → master
+                let options = [];
+
+                // 1️⃣ Selected (in-memory)
+                if (selectedProducts[productId] && Array.isArray(selectedProducts[productId].options)) {
+                    options = selectedProducts[productId].options;
+
+                    // 2️⃣ Vendor saved options
+                } else if (product.vendor_options) {
+                    try {
+                        options = Array.isArray(product.vendor_options)
+                            ? product.vendor_options
+                            : JSON.parse(product.vendor_options);
+                    } catch (e) {
+                        options = [];
+                    }
+
+                    // 3️⃣ Master options
+                } else if (Array.isArray(product.options)) {
+                    options = product.options;
+                }
+
+                const selectedCount = options.filter(o => o.is_available).length;
+
+                let label = 'Set Options';
+
+                if (selectedCount === 1) {
+                    label = options.find(o => o.is_available)?.title || '1 option';
+                } else if (selectedCount > 1) {
+                    label = `${selectedCount} options`;
+                }
+
+                return `
+        <button type="button"
+            class="btn btn-sm btn-outline-secondary options-btn"
+            data-product-id="${productId}"
+            onclick="openOptionsModal('${productId}')"
+            title="${selectedCount} option(s) selected"
+            style="font-size:0.75rem;width:100%;">
+            <i class="fa fa-list mr-1"></i>${label}
+        </button>
+    `;
+            }
+
             // Render availability days (compact button with modal/popup)
             function renderAvailabilityDays(productId, availableDays) {
                 const days = Array.isArray(availableDays) ? availableDays : [];
                 const daysText = days.length > 0 ? days.join(', ') : 'Not set';
                 const daysShort = days.length > 0 ? (days.length <= 2 ? days.join(', ') : days.length + ' days') : 'Set Days';
-                
+
                 return `
-                    <button type="button" 
-                            class="btn btn-sm btn-outline-primary availability-days-btn" 
+                    <button type="button"
+                            class="btn btn-sm btn-outline-primary availability-days-btn"
                             data-product-id="${productId}"
                             onclick="openAvailabilityModal(${productId})"
                             title="${daysText}"
@@ -1071,17 +1091,17 @@
                     // Old format: {"Monday": ["09:00-12:00"]} or already converted
                     timings = availableTimings;
                 }
-                
+
                 const timingCount = Object.keys(timings).length;
                 const slotsCount = Object.values(timings).reduce((sum, slots) => {
                     return sum + (Array.isArray(slots) ? slots.length : 0);
                 }, 0);
-                
+
                 let displayText = 'Not set';
                 if (timingCount > 0 && slotsCount > 0) {
                     displayText = `${slotsCount} slot${slotsCount !== 1 ? 's' : ''}`;
                 }
-                
+
                 return `
                     <small class="text-muted" style="font-size: 0.75rem;" title="${JSON.stringify(timings)}">${displayText}</small>
                 `;
@@ -1111,11 +1131,34 @@
                         const discountPrice = discountPriceInput ? (discountPriceInput.value || '') : '';
                         const publish = publishCheckbox ? publishCheckbox.checked : true;
                         const isAvailable = availableCheckbox ? availableCheckbox.checked : true;
+                        let existingOptions = [];
+
+// Priority: selected → vendor → master
+                        if (selectedProducts[productId]?.options) {
+                            existingOptions = selectedProducts[productId].options;
+                        } else if (currentProductsData[productId]?.vendor_options) {
+                            try {
+                                existingOptions = Array.isArray(currentProductsData[productId].vendor_options)
+                                    ? currentProductsData[productId].vendor_options
+                                    : JSON.parse(currentProductsData[productId].vendor_options);
+                            } catch (e) {
+                                existingOptions = [];
+                            }
+                        } else if (Array.isArray(currentProductsData[productId]?.options)) {
+                            existingOptions = currentProductsData[productId].options.map(opt => ({
+                                id: opt.id,
+                                title: opt.title || '',
+                                subtitle: opt.subtitle || '',
+                                price: opt.price || '',
+                                is_available: true
+                            }));
+                        }
+
 
                         // Calculate online price based on subscription and GST (only if merchant_price is provided)
                         const merchantPriceNum = parseFloat(merchantPrice);
                         let onlinePrice = '';
-                        
+
                         if (!isNaN(merchantPriceNum) && merchantPriceNum > 0) {
                             // Get subscription info from global scope
                             const hasSub = typeof hasSubscription !== 'undefined' ? hasSubscription : false;
@@ -1123,15 +1166,15 @@
                             const planTypeValue = typeof planType !== 'undefined' ? planType : 'commission';
                             const gstAgreedValue = typeof gstAgreed !== 'undefined' ? gstAgreed : false;
                             const gstPercent = 5;
-                            
+
                             // Determine if it's commission-based or subscription-based
                             const isCommissionBased = !hasSub || planTypeValue === 'commission';
-                            
+
                             if (isCommissionBased) {
                                 // Scenario 1: Commission-Based Model
                                 const commission = merchantPriceNum * (applyPercent / 100);
                                 const priceBeforeGst = merchantPriceNum + commission;
-                                
+
                                 if (gstAgreedValue) {
                                     // Case 1: Merchant AGREED for GST - Platform absorbs GST
                                     onlinePrice = priceBeforeGst.toFixed(2);
@@ -1181,7 +1224,7 @@
                             }
                             if (vendorProduct.vendor_available_timings) {
                                 const rawTimings = typeof vendorProduct.vendor_available_timings === 'object' ? vendorProduct.vendor_available_timings : JSON.parse(vendorProduct.vendor_available_timings || '{}');
-                                
+
                                 // Convert to day-based format for modal (handle both old and new formats)
                                 if (Array.isArray(rawTimings) && rawTimings[0] && rawTimings[0].day) {
                                     // New format: [{day: "Monday", timeslot: [{from: "09:00", to: "12:00"}]}]
@@ -1210,8 +1253,11 @@
                             }
                         }
 
+                        const vendorProductId = row.getAttribute('data-vendor-product-id') || null;
+
                         selectedProducts[productId] = {
                             master_product_id: productId,
+                            vendor_product_id: vendorProductId,
                             merchant_price: merchantPrice,
                             online_price: onlinePrice,
                             discount_price: discountPrice,
@@ -1219,9 +1265,11 @@
                             isAvailable: isAvailable,
                             addons: addons,
                             available_days: availableDays,
-                            available_timings: availableTimings
+                            available_timings: availableTimings,
+                            options: existingOptions
                         };
-                        
+
+
                         // Update online price input field
                         const onlinePriceInput = document.querySelector(`.product-online-price[data-product-id="${productId}"]`);
                         if (onlinePriceInput) {
@@ -1257,6 +1305,7 @@
                     } else {
                         // Remove from selected products
                         delete selectedProducts[productId];
+
 
                         // Remove from selection order
                         selectionOrder = selectionOrder.filter(id => id !== productId);
@@ -1307,21 +1356,21 @@
                         }
                     }
                 }
-                
+
                 if (calcDisplay && merchantPrice > 0) {
                     const isCommissionBased = !hasSub || planTypeValue === 'commission';
                     let calcText = '<strong>Calculation:</strong><br>';
                     calcText += 'Merchant: ₹' + merchantPrice.toFixed(2) + '<br>';
-                    
+
                     if (isCommissionBased) {
                         const commission = merchantPrice * (applyPercent / 100);
                         const priceBeforeGst = merchantPrice + commission;
                         calcText += 'Type: Commission (' + applyPercent + '%)<br>';
                         calcText += 'Commission: ₹' + commission.toFixed(2) + '<br>';
                         calcText += 'Before GST: ₹' + priceBeforeGst.toFixed(2) + '<br>';
-                        
+
                         if (gstAgreedValue) {
-                            calcText += '<span class="text-success">GST: Absorbed by platform</span><br>';
+                            calcText += '<span class="text-dark">GST: Absorbed by platform</span><br>';
                         } else {
                             // GST is 5% of Merchant Price (not of price before GST)
                             const gstAmount = merchantPrice * (gstPercentage / 100);
@@ -1336,7 +1385,7 @@
                             calcText += '<span class="text-warning">GST (5%): +₹' + gstAmount.toFixed(2) + '</span><br>';
                         }
                     }
-                    
+
                     calcText += '<strong>Online Price: ₹' + onlinePrice.toFixed(2) + '</strong>';
                     calcDisplay.innerHTML = calcText;
                 }
@@ -1350,13 +1399,13 @@
                         selectedProducts[productId][field] = value === true || value === 'true' || value === 1 || value === '1';
                     } else if (field === 'merchant_price') {
                         selectedProducts[productId][field] = value;
-                        
+
                         // Calculate online price based on subscription and GST (only if merchant_price is provided)
                         // Only auto-calculate if online price is empty or 0 (allows manual override)
                         const merchantPriceNum = parseFloat(value);
                         const onlinePriceInput = document.querySelector(`.product-online-price[data-product-id="${productId}"]`);
                         const currentOnlinePrice = onlinePriceInput ? parseFloat(onlinePriceInput.value) || 0 : 0;
-                        
+
                         if (!isNaN(merchantPriceNum) && merchantPriceNum > 0) {
                             // Only auto-calculate if online price is empty or 0
                             if (currentOnlinePrice === 0) {
@@ -1365,15 +1414,15 @@
                                 const applyPercent = typeof applyPercentage !== 'undefined' ? applyPercentage : 30;
                                 const planTypeValue = typeof planType !== 'undefined' ? planType : 'commission';
                                 const gstAgreedValue = typeof gstAgreed !== 'undefined' ? gstAgreed : false;
-                                
+
                                 // Determine if it's commission-based or subscription-based
                                 const isCommissionBased = !hasSub || planTypeValue === 'commission';
-                                
+
                                 if (isCommissionBased) {
                                     // Scenario 1: Commission-Based Model
                                     const commission = merchantPriceNum * (applyPercent / 100);
                                     const priceBeforeGst = merchantPriceNum + commission;
-                                    
+
                                     if (gstAgreedValue) {
                                         // Case 1: Merchant AGREED for GST - Platform absorbs GST
                                         onlinePrice = priceBeforeGst;
@@ -1392,16 +1441,16 @@
                                         onlinePrice = merchantPriceNum + (merchantPriceNum * (gstPercentage / 100));
                                     }
                                 }
-                                
+
                                 selectedProducts[productId].online_price = onlinePrice.toFixed(2);
-                                
+
                                 // Update online price input field
                                 if (onlinePriceInput) {
                                     onlinePriceInput.value = onlinePrice.toFixed(2);
-                                    
+
                                     // Update calculation display
                                     updatePriceCalculation(productId, merchantPriceNum, onlinePrice, hasSub, applyPercent, planTypeValue, gstAgreedValue);
-                                    
+
                                     // Re-validate discount price when online price changes
                                     if (selectedProducts[productId].discount_price) {
                                         validateDiscountPrice(productId);
@@ -1413,11 +1462,11 @@
                                 const applyPercent = typeof applyPercentage !== 'undefined' ? applyPercentage : 30;
                                 const planTypeValue = typeof planType !== 'undefined' ? planType : 'commission';
                                 const gstAgreedValue = typeof gstAgreed !== 'undefined' ? gstAgreed : false;
-                                
+
                                 // Calculate the correct online price
                                 let calculatedOnlinePrice = 0;
                                 const isCommissionBased = !hasSub || planTypeValue === 'commission';
-                                
+
                                 if (isCommissionBased) {
                                     const commission = merchantPriceNum * (applyPercent / 100);
                                     const priceBeforeGst = merchantPriceNum + commission;
@@ -1434,10 +1483,10 @@
                                         calculatedOnlinePrice = merchantPriceNum + (merchantPriceNum * (gstPercentage / 100));
                                     }
                                 }
-                                
+
                                 // Update calculation display with calculated value (shows what it should be)
                                 updatePriceCalculation(productId, merchantPriceNum, calculatedOnlinePrice, hasSub, applyPercent, planTypeValue, gstAgreedValue);
-                                
+
                                 // Also update the input field if the current value seems wrong (differs significantly from calculated)
                                 // This handles cases where old incorrect values are in the input field
                                 // Allow up to 10% difference for manual edits, but update if way off
@@ -1465,11 +1514,11 @@
                         // Online price was manually edited - update the stored value and calculation display
                         const onlinePriceNum = parseFloat(value) || 0;
                         selectedProducts[productId].online_price = onlinePriceNum > 0 ? onlinePriceNum.toFixed(2) : '';
-                        
+
                         // Update calculation display
                         const merchantPriceInput = document.querySelector(`.product-merchant-price[data-product-id="${productId}"]`);
                         const merchantPriceNum = merchantPriceInput ? parseFloat(merchantPriceInput.value) || 0 : 0;
-                        
+
                         if (merchantPriceNum > 0 && onlinePriceNum > 0) {
                             const hasSub = typeof hasSubscription !== 'undefined' ? hasSubscription : false;
                             const applyPercent = typeof applyPercentage !== 'undefined' ? applyPercentage : 30;
@@ -1477,7 +1526,7 @@
                             const gstAgreedValue = typeof gstAgreed !== 'undefined' ? gstAgreed : false;
                             updatePriceCalculation(productId, merchantPriceNum, onlinePriceNum, hasSub, applyPercent, planTypeValue, gstAgreedValue);
                         }
-                        
+
                         // Re-validate discount price when online price changes
                         const discountPriceInput = document.querySelector(`.product-discount-price[data-product-id="${productId}"]`);
                         if (discountPriceInput) {
@@ -1488,38 +1537,38 @@
                         const discountPriceNum = parseFloat(value) || 0;
                         const onlinePriceInput = document.querySelector(`.product-online-price[data-product-id="${productId}"]`);
                         const discountPriceInput = document.querySelector(`.product-discount-price[data-product-id="${productId}"]`);
-                        
+
                         if (onlinePriceInput && discountPriceInput) {
                             const onlinePriceNum = parseFloat(onlinePriceInput.value) || 0;
-                            
+
                             if (discountPriceNum > 0 && onlinePriceNum > 0 && discountPriceNum > onlinePriceNum) {
                                 // Get product name from the table row
                                 const productRow = discountPriceInput.closest('tr');
                                 const productNameCell = productRow ? productRow.querySelector('td:nth-child(3) strong') : null;
                                 const productName = productNameCell ? productNameCell.textContent.trim() : 'this product';
-                                
+
                                 // Show error message with product name
                                 const errorMsg = `Discount price cannot be greater than online price for product "${productName}".`;
                                 alert(errorMsg);
-                                
+
                                 // Reset to previous value or 0
                                 const previousValue = selectedProducts[productId].discount_price || '0';
                                 discountPriceInput.value = previousValue;
                                 selectedProducts[productId][field] = previousValue;
-                                
+
                                 // Add visual feedback (red border)
                                 discountPriceInput.style.borderColor = '#dc3545';
                                 setTimeout(() => {
                                     discountPriceInput.style.borderColor = '';
                                 }, 3000);
-                                
+
                                 return; // Don't update the value
                             } else {
                                 // Remove error styling if validation passes
                                 discountPriceInput.style.borderColor = '';
                             }
                         }
-                        
+
                         selectedProducts[productId][field] = value;
                     } else {
                         selectedProducts[productId][field] = value;
@@ -1528,87 +1577,78 @@
                 // If product is not selected, values are stored in inputs but won't be saved until checkbox is checked
             };
 
-            // Add addon row
-            window.addAddonRow = function(productId) {
-                // Only allow if product is selected
+            window.addAddonRow = function (productId) {
+
                 if (!selectedProducts[productId]) {
-                    alert('Please select this product first by checking the checkbox.');
+                    alert('Please select this product first.');
                     return;
                 }
 
-                // Initialize addons array if it doesn't exist
-                if (!selectedProducts[productId].addons) {
+                if (!Array.isArray(selectedProducts[productId].addons)) {
                     selectedProducts[productId].addons = [];
                 }
 
-                // Check if there's an empty addon row that needs to be saved first
-                const container = document.querySelector(`.addons-container[data-product-id="${productId}"]`);
+                // 🔥 CAPTURE CURRENT INPUT VALUES BEFORE ADDING NEW ROW
+                const container = document.querySelector(
+                    `.addons-container[data-product-id="${productId}"]`
+                );
+
                 if (container) {
-                    const existingRows = container.querySelectorAll('.addon-row');
+                    const rows = container.querySelectorAll('.addon-row');
+                    const captured = [];
 
-                    // Save only non-empty addons from existing rows
-                    const nonEmptyAddons = [];
-                    existingRows.forEach((row) => {
-                        const titleInput = row.querySelector('.addon-title');
-                        const priceInput = row.querySelector('.addon-price');
+                    rows.forEach(row => {
+                        const title = row.querySelector('.addon-title')?.value.trim();
+                        const price = row.querySelector('.addon-price')?.value.trim();
 
-                        if (titleInput && priceInput) {
-                            const title = titleInput.value.trim();
-                            const price = priceInput.value.trim();
-
-                            // Only save if at least one field has a value
-                            if (title || price) {
-                                nonEmptyAddons.push({ title: title, price: price });
-                            }
+                        if (title || price) {
+                            captured.push({ title, price });
                         }
                     });
 
-                    // Update selectedProducts with only non-empty addons
-                    selectedProducts[productId].addons = nonEmptyAddons;
+                    selectedProducts[productId].addons = captured;
                 }
 
-                // Add new empty addon (will be filtered out if empty when saving)
+                // ✅ ADD ONE NEW EMPTY ROW
                 selectedProducts[productId].addons.push({ title: '', price: '' });
 
-                // Re-render addons
                 if (container) {
                     container.innerHTML = renderAddons(productId, null);
-                    // Re-attach event handlers for the new addon inputs
-                    attachAddonEventHandlers(productId);
                 }
             };
+
 
             // Validate discount price against online price
             window.validateDiscountPrice = function(productId) {
                 const discountPriceInput = document.querySelector(`.product-discount-price[data-product-id="${productId}"]`);
                 const onlinePriceInput = document.querySelector(`.product-online-price[data-product-id="${productId}"]`);
-                
+
                 if (discountPriceInput && onlinePriceInput) {
                     const discountPriceNum = parseFloat(discountPriceInput.value) || 0;
                     const onlinePriceNum = parseFloat(onlinePriceInput.value) || 0;
-                    
+
                     if (discountPriceNum > 0 && onlinePriceNum > 0 && discountPriceNum > onlinePriceNum) {
                         // Get product name from the table row
                         const productRow = discountPriceInput.closest('tr');
                         const productNameCell = productRow ? productRow.querySelector('td:nth-child(3) strong') : null;
                         const productName = productNameCell ? productNameCell.textContent.trim() : 'this product';
-                        
+
                         // Show error message with product name
                         const errorMsg = `Discount price cannot be greater than online price for product "${productName}".`;
                         alert(errorMsg);
-                        
+
                         // Reset to 0 or previous valid value
                         discountPriceInput.value = '0';
                         if (selectedProducts[productId]) {
                             selectedProducts[productId].discount_price = '0';
                         }
-                        
+
                         // Add visual feedback (red border)
                         discountPriceInput.style.borderColor = '#dc3545';
                         setTimeout(() => {
                             discountPriceInput.style.borderColor = '';
                         }, 3000);
-                        
+
                         return false;
                     } else {
                         // Remove error styling if validation passes
@@ -1632,10 +1672,6 @@
                     selectedProducts[productId].addons = [];
                 }
 
-                // If index is 0 and array is empty, this is the first empty row being filled
-                if (selectedProducts[productId].addons.length === 0 && index === 0) {
-                    selectedProducts[productId].addons.push({ title: '', price: '' });
-                }
 
                 // Ensure the addon at this index exists
                 while (selectedProducts[productId].addons.length <= index) {
@@ -1672,96 +1708,33 @@
                     const container = document.querySelector(`.addons-container[data-product-id="${productId}"]`);
                     if (container) {
                         container.innerHTML = renderAddons(productId, null);
-                        // Re-attach event handlers after removal
-                        attachAddonEventHandlers(productId);
+
                     }
                 }
             };
 
-            // Attach event handlers to addon inputs
-            function attachAddonEventHandlers(productId) {
-                const container = document.querySelector(`.addons-container[data-product-id="${productId}"]`);
-                if (!container) return;
 
-                // Attach handlers to all addon title inputs
-                container.querySelectorAll('.addon-title').forEach((input, index) => {
-                    // Remove existing handler if any
-                    if (input._addonTitleHandler) {
-                        input.removeEventListener('change', input._addonTitleHandler);
-                    }
-                    // Create new handler
-                    input._addonTitleHandler = function() {
-                        updateAddon(productId, index, 'title', this.value);
-                    };
-                    input.addEventListener('change', input._addonTitleHandler);
 
-                    // Also handle input event for real-time updates
-                    if (input._addonTitleInputHandler) {
-                        input.removeEventListener('input', input._addonTitleInputHandler);
-                    }
-                    input._addonTitleInputHandler = function() {
-                        updateAddon(productId, index, 'title', this.value);
-                    };
-                    input.addEventListener('input', input._addonTitleInputHandler);
-                });
-
-                // Attach handlers to all addon price inputs
-                container.querySelectorAll('.addon-price').forEach((input, index) => {
-                    // Remove existing handler if any
-                    if (input._addonPriceHandler) {
-                        input.removeEventListener('change', input._addonPriceHandler);
-                    }
-                    // Create new handler
-                    input._addonPriceHandler = function() {
-                        updateAddon(productId, index, 'price', this.value);
-                    };
-                    input.addEventListener('change', input._addonPriceHandler);
-
-                    // Also handle input event for real-time updates
-                    if (input._addonPriceInputHandler) {
-                        input.removeEventListener('input', input._addonPriceInputHandler);
-                    }
-                    input._addonPriceInputHandler = function() {
-                        updateAddon(productId, index, 'price', this.value);
-                    };
-                    input.addEventListener('input', input._addonPriceInputHandler);
-                });
-            }
-
-            // Update selected products summary
             function updateSelectedProductsSummary() {
-                // Count only products that are actually checked (have checked checkbox)
-                const checkedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
-                const count = checkedCheckboxes.length;
                 const summaryDiv = document.getElementById('selected-products-summary');
                 const countElement = document.getElementById('selected-count');
                 const saveCountElement = document.getElementById('save-count');
 
-                // Also verify that selectedProducts matches checked checkboxes
-                // Clean up selectedProducts to remove any products that aren't actually checked
-                const checkedProductIds = Array.from(checkedCheckboxes).map(cb => parseInt(cb.dataset.productId));
-                const productsToRemove = [];
-                Object.keys(selectedProducts).forEach(productId => {
-                    if (!checkedProductIds.includes(parseInt(productId))) {
-                        productsToRemove.push(productId);
-                    }
-                });
-                // Remove products that aren't checked
-                productsToRemove.forEach(productId => {
-                    delete selectedProducts[productId];
-                });
+                // ✅ ONLY SOURCE OF TRUTH = CHECKED CHECKBOXES
+                const checkedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
+                const count = checkedCheckboxes.length;
 
-                // Also clean up selectionOrder
-                selectionOrder = selectionOrder.filter(id => checkedProductIds.includes(parseInt(id)));
+                // 🔥 FORCE UI SYNC
+                countElement.textContent = count;
+                saveCountElement.textContent = count;
 
-                if (count > 0) {
-                    if (countElement) countElement.textContent = count;
-                    if (saveCountElement) saveCountElement.textContent = count;
-                    summaryDiv.style.display = 'block';
-                } else {
+                if (count === 0) {
                     summaryDiv.style.display = 'none';
+                } else {
+                    summaryDiv.style.display = 'block';
                 }
             }
+
 
             // Save selected products
             const saveButton = document.getElementById('save-selected-products');
@@ -1823,6 +1796,16 @@
                     sortedProductIds.forEach((productId, index) => {
                         const product = selectedProducts[productId];
 
+                        // 🔥 CRITICAL: submit vendor_product_id FIRST (prevents duplicate insert)
+                        if (product.vendor_product_id) {
+                            const vpInput = document.createElement('input');
+                            vpInput.type = 'hidden';
+                            vpInput.name = `selected_products[${index}][vendor_product_id]`;
+                            vpInput.value = product.vendor_product_id;
+                            inputsContainer.appendChild(vpInput);
+                        }
+
+
                         // Get latest values from inputs (merchant_price, online_price and discount_price are always editable)
                         const merchantPriceInput = document.querySelector(`.product-merchant-price[data-product-id="${productId}"]`);
                         const onlinePriceInput = document.querySelector(`.product-online-price[data-product-id="${productId}"]`);
@@ -1867,85 +1850,97 @@
 
                         // Create hidden inputs for each product
                         Object.keys(product).forEach(key => {
-                            if (key === 'addons') {
-                                // Handle addons separately
+
+                            // 1️⃣ OPTIONS
+                            if (key === 'options') {
+                                if (Array.isArray(product.options) && product.options.length > 0) {
+                                    product.options.forEach((opt, optIndex) => {
+                                        const input = document.createElement('input');
+                                        input.type = 'hidden';
+                                        input.name = `selected_products[${index}][options][${optIndex}]`;
+                                        input.value = JSON.stringify({
+                                            id: opt.id,
+                                            title: opt.title || '',
+                                            subtitle: opt.subtitle || '',
+                                            price: opt.price || '',
+                                            is_available: !!opt.is_available
+                                        });
+                                        inputsContainer.appendChild(input);
+                                    });
+                                }
+
+                                // 2️⃣ ADDONS
+                            } else if (key === 'addons') {
                                 if (product.addons && product.addons.length > 0) {
-                                    product.addons.forEach((addon, addonIndex) => {
+                                    product.addons.forEach(addon => {
                                         if (addon.title && addon.price) {
                                             const titleInput = document.createElement('input');
                                             titleInput.type = 'hidden';
                                             titleInput.name = `selected_products[${index}][addons_title][]`;
-                                            titleInput.value = addon.title || '';
+                                            titleInput.value = addon.title;
                                             inputsContainer.appendChild(titleInput);
 
                                             const priceInput = document.createElement('input');
                                             priceInput.type = 'hidden';
                                             priceInput.name = `selected_products[${index}][addons_price][]`;
-                                            priceInput.value = addon.price || '';
+                                            priceInput.value = addon.price;
                                             inputsContainer.appendChild(priceInput);
                                         }
                                     });
                                 }
+
+                                // 3️⃣ AVAILABILITY
                             } else if (key === 'available_days' || key === 'available_timings') {
-                                // Handle availability arrays/objects separately
-                                if (key === 'available_days' && Array.isArray(product[key]) && product[key].length > 0) {
-                                    product[key].forEach((day, dayIndex) => {
+
+                                if (key === 'available_days' && Array.isArray(product.available_days)) {
+                                    product.available_days.forEach(day => {
                                         const input = document.createElement('input');
                                         input.type = 'hidden';
                                         input.name = `selected_products[${index}][available_days][]`;
-                                        input.value = day || '';
+                                        input.value = day;
                                         inputsContainer.appendChild(input);
                                     });
-                                } else if (key === 'available_timings' && typeof product[key] === 'object' && product[key] !== null) {
-                                    // Convert day-based format to working_hours format: available_timings[Monday][0][from], available_timings[Monday][0][to]
-                                    Object.keys(product[key]).forEach(day => {
-                                        const slots = product[key][day];
-                                        if (Array.isArray(slots) && slots.length > 0) {
-                                            slots.forEach((slot, slotIndex) => {
-                                                // Slot can be object {from: "09:00", to: "12:00"} or old format string "09:00-12:00"
-                                                let from = '';
-                                                let to = '';
-                                                if (typeof slot === 'object' && slot !== null) {
-                                                    from = slot.from || '';
-                                                    to = slot.to || '';
-                                                } else if (typeof slot === 'string' && slot.includes('-')) {
-                                                    const parts = slot.split('-');
-                                                    from = parts[0]?.trim() || '';
-                                                    to = parts[1]?.trim() || '';
-                                                }
-                                                
-                                                if (from && to) {
-                                                    const fromInput = document.createElement('input');
-                                                    fromInput.type = 'hidden';
-                                                    fromInput.name = `selected_products[${index}][available_timings][${day}][${slotIndex}][from]`;
-                                                    fromInput.value = from;
-                                                    inputsContainer.appendChild(fromInput);
+                                }
 
-                                                    const toInput = document.createElement('input');
-                                                    toInput.type = 'hidden';
-                                                    toInput.name = `selected_products[${index}][available_timings][${day}][${slotIndex}][to]`;
-                                                    toInput.value = to;
-                                                    inputsContainer.appendChild(toInput);
-                                                }
-                                            });
-                                        }
+                                if (key === 'available_timings' && typeof product.available_timings === 'object') {
+                                    Object.keys(product.available_timings).forEach(day => {
+                                        product.available_timings[day].forEach((slot, slotIndex) => {
+                                            if (slot.from && slot.to) {
+                                                const fromInput = document.createElement('input');
+                                                fromInput.type = 'hidden';
+                                                fromInput.name = `selected_products[${index}][available_timings][${day}][${slotIndex}][from]`;
+                                                fromInput.value = slot.from;
+                                                inputsContainer.appendChild(fromInput);
+
+                                                const toInput = document.createElement('input');
+                                                toInput.type = 'hidden';
+                                                toInput.name = `selected_products[${index}][available_timings][${day}][${slotIndex}][to]`;
+                                                toInput.value = slot.to;
+                                                inputsContainer.appendChild(toInput);
+                                            }
+                                        });
                                     });
                                 }
+
+                                // 4️⃣ EVERYTHING ELSE
                             } else {
                                 const input = document.createElement('input');
                                 input.type = 'hidden';
                                 input.name = `selected_products[${index}][${key}]`;
 
-                                // Convert boolean values to 1/0 for form submission
                                 if (key === 'publish' || key === 'isAvailable') {
                                     input.value = product[key] ? '1' : '0';
                                 } else {
                                     input.value = product[key] || '';
                                 }
+
                                 inputsContainer.appendChild(input);
                             }
                         });
+
                     });
+
+
 
                     // Submit form
                     form.submit();
@@ -1957,23 +1952,181 @@
             loadProductsForCategory('{{ $selectedCategoryId }}', '{{ $categories->firstWhere("id", $selectedCategoryId)->title ?? "Category" }}', 1, 10, '');
             @endif
 
-            // Event delegation for dynamically created checkboxes (backup)
-            document.addEventListener('change', function(event) {
-                if (event.target.classList.contains('product-checkbox')) {
-                    const productId = parseInt(event.target.dataset.productId);
-                    if (productId && typeof toggleProductSelection === 'function') {
-                        toggleProductSelection(productId);
+            // // Event delegation for dynamically created checkboxes (backup)
+            // document.addEventListener('change', function(event) {
+            //     if (event.target.classList.contains('product-checkbox')) {
+            //         const productId = parseInt(event.target.dataset.productId);
+            //         if (productId && typeof toggleProductSelection === 'function') {
+            //             toggleProductSelection(productId);
+            //         }
+            //     }
+            // });
+
+            function buildOptionsModal(productId, options) {
+
+                // Remove existing modal if present
+                const existing = document.getElementById(`optionsModal${productId}`);
+                if (existing) {
+                    existing.remove();
+                }
+
+                let modalHtml = `
+<div class="modal fade"
+     id="optionsModal${productId}"
+     tabindex="-1"
+     role="dialog"
+     aria-modal="true"
+     data-backdrop="static"
+     data-keyboard="false">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa fa-list mr-2"></i>Product Options
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="optionsContainer${productId}">
+    `;
+
+                if (!options || options.length === 0) {
+                    modalHtml += `<p class="text-muted text-center">No options available</p>`;
+                } else {
+                    options.forEach((opt, index) => {
+                        modalHtml += `
+                <div class="form-check mb-2 d-flex align-items-center gap-2">
+    <input type="checkbox"
+           id="option_${productId}_${index}"
+           class="form-check-input option-checkbox"
+           data-id="${opt.id}"
+           data-index="${index}"
+           data-title="${opt.title || ''}"
+           data-subtitle="${opt.subtitle || ''}"
+           data-default-price="${opt.price || ''}"
+           ${opt.is_available ? 'checked' : ''}>
+
+    <label class="form-check-label mr-2" for="option_${productId}_${index}">
+        ${opt.title || ''}
+        ${opt.subtitle ? ` – ${opt.subtitle}` : ''}
+    </label>
+
+    <input type="number"
+           class="form-control form-control-sm option-price-input"
+           style="width:90px"
+           value="${opt.price || ''}"
+           placeholder="₹ Price">
+</div>
+
+            `;
+                    });
+                }
+
+                modalHtml += `
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" onclick="saveOptions(${productId})">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+`;
+
+                // Append and show
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+                const modal = $(`#optionsModal${productId}`);
+                modal.modal({
+                    backdrop: 'static',
+                    keyboard: false
+                });
+
+                modal.on('hidden.bs.modal', function () {
+                    $(this).remove();
+                });
+            }
+
+
+            // Open options modal for a product
+            window.openOptionsModal = function (productId) {
+
+                const masterProduct = currentProductsData[productId];
+
+                if (!masterProduct) {
+                    alert('Product data not found');
+                    return;
+                }
+
+                // ✅ If already selected → use saved options directly
+                if (selectedProducts[productId]?.options?.length) {
+                    buildOptionsModal(productId, selectedProducts[productId].options);
+                    return;
+                }
+
+                let baseOptions = [];
+                let savedOptions = [];
+
+// 1️⃣ MASTER OPTIONS (all possible options)
+                if (Array.isArray(masterProduct.options)) {
+                    baseOptions = masterProduct.options;
+                }
+
+// 2️⃣ VENDOR SAVED OPTIONS (only selected ones)
+                if (masterProduct.vendor_options) {
+                    try {
+                        savedOptions = Array.isArray(masterProduct.vendor_options)
+                            ? masterProduct.vendor_options
+                            : JSON.parse(masterProduct.vendor_options || '[]');
+                    } catch (e) {
+                        savedOptions = [];
                     }
                 }
-            });
+
+// 3️⃣ BUILD OPTIONS WITH CORRECT CHECK STATE
+                const options = baseOptions.map(opt => {
+                    const isSaved = savedOptions.some(saved =>
+                        saved.title === opt.title &&
+                        saved.subtitle === opt.subtitle
+
+                    );
+
+
+
+                    return {
+                        id: opt.id,
+                        title: opt.title || '',
+                        subtitle: opt.subtitle || '',
+                        price: opt.price || '',
+                        is_available: isSaved
+                    };
+                });
+
+                buildOptionsModal(productId, options);
+                return;
+
+
+
+                modal.on('click', function (e) {
+                    e.stopPropagation();
+                });
+
+            };
+
+
+
 
             // Open availability modal for a product
             window.openAvailabilityModal = function(productId) {
                 const product = selectedProducts[productId];
+
                 let availableDays = product?.available_days || [];
                 let availableTimings = product?.available_timings || {};
                 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-                
+
                 // Convert old format to new format if needed (backward compatibility)
                 if (availableTimings && !Array.isArray(availableTimings) && typeof availableTimings === 'object') {
                     // Check if it's old format: { "Monday": ["09:00-12:00"] }
@@ -2008,7 +2161,7 @@
                     });
                     availableTimings = converted;
                 }
-                
+
                 // Create modal HTML
                 let modalHtml = `
                     <div class="modal fade" id="availabilityModal${productId}" tabindex="-1" role="dialog">
@@ -2027,14 +2180,14 @@
                                         <label class="font-weight-bold">Select Available Days:</label>
                                         <div class="row mt-2">
                 `;
-                
+
                 daysOfWeek.forEach(day => {
                     const checked = availableDays.includes(day) ? 'checked' : '';
                     modalHtml += `
                             <div class="col-md-3 mb-2">
                                 <div class="form-check">
-                                    <input class="form-check-input day-checkbox-modal" type="checkbox" 
-                                           id="day_${productId}_${day}" 
+                                    <input class="form-check-input day-checkbox-modal" type="checkbox"
+                                           id="day_${productId}_${day}"
                                            value="${day}"
                                            ${checked}
                                            data-day="${day}">
@@ -2045,13 +2198,13 @@
                             </div>
                     `;
                 });
-                
+
                 modalHtml += `
                                         </div>
                                     </div>
                                     <div id="timings-container-modal${productId}" class="mt-3">
                 `;
-                
+
                 daysOfWeek.forEach(day => {
                     const daySlots = availableTimings[day] || [];
                     const isChecked = availableDays.includes(day);
@@ -2060,7 +2213,7 @@
                             <label class="font-weight-bold">${day} Time Slots:</label>
                             <div class="timings-list-modal mt-2" data-day="${day}">
                     `;
-                    
+
                     if (daySlots.length > 0) {
                         daySlots.forEach((slot, slotIndex) => {
                             const from = slot.from || (typeof slot === 'string' && slot.includes('-') ? slot.split('-')[0].trim() : '');
@@ -2069,14 +2222,14 @@
                                 <div class="row align-items-end mb-2 timing-row-modal" data-day="${day}" data-index="${slotIndex}">
                                     <div class="col-md-4">
                                         <label class="form-label small">From</label>
-                                        <input type="time" 
-                                               class="form-control form-control-sm time-slot-from-modal" 
+                                        <input type="time"
+                                               class="form-control form-control-sm time-slot-from-modal"
                                                value="${from}">
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label small">To</label>
-                                        <input type="time" 
-                                               class="form-control form-control-sm time-slot-to-modal" 
+                                        <input type="time"
+                                               class="form-control form-control-sm time-slot-to-modal"
                                                value="${to}">
                                     </div>
                                     <div class="col-md-4 d-flex align-items-end">
@@ -2092,12 +2245,12 @@
                             <div class="row align-items-end mb-2 timing-row-modal" data-day="${day}" data-index="0">
                                 <div class="col-md-4">
                                     <label class="form-label small">From</label>
-                                    <input type="time" 
+                                    <input type="time"
                                            class="form-control form-control-sm time-slot-from-modal">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small">To</label>
-                                    <input type="time" 
+                                    <input type="time"
                                            class="form-control form-control-sm time-slot-to-modal">
                                 </div>
                                 <div class="col-md-4 d-flex align-items-end">
@@ -2108,7 +2261,7 @@
                             </div>
                         `;
                     }
-                    
+
                     modalHtml += `
                             </div>
                             <button type="button" class="btn btn-sm btn-outline-primary add-time-slot-modal" data-day="${day}">
@@ -2117,7 +2270,7 @@
                         </div>
                     `;
                 });
-                
+
                 modalHtml += `
                                     </div>
                                 </div>
@@ -2131,25 +2284,25 @@
                         </div>
                     </div>
                 `;
-                
+
                 // Remove existing modal if any
                 const existingModal = document.getElementById(`availabilityModal${productId}`);
                 if (existingModal) {
                     existingModal.remove();
                 }
-                
+
                 // Add modal to body
                 document.body.insertAdjacentHTML('beforeend', modalHtml);
-                
+
                 // Show modal
                 $(`#availabilityModal${productId}`).modal('show');
-                
+
                 // Handle day checkbox changes
                 $(`#availabilityModal${productId}`).on('change', '.day-checkbox-modal', function() {
                     const day = $(this).data('day');
                     const isChecked = $(this).is(':checked');
                     $(`#availabilityModal${productId} .day-timings-group-modal[data-day="${day}"]`).toggle(isChecked);
-                    
+
                     // If checked and no slots, add one empty slot
                     if (isChecked) {
                         const timingsList = $(`#availabilityModal${productId} .timings-list-modal[data-day="${day}"]`);
@@ -2158,18 +2311,18 @@
                         }
                     }
                 });
-                
+
                 // Handle add time slot
                 $(`#availabilityModal${productId}`).on('click', '.add-time-slot-modal', function() {
                     const day = $(this).data('day');
                     addTimeSlotModal(productId, day);
                 });
-                
+
                 // Handle remove time slot
                 $(`#availabilityModal${productId}`).on('click', '.remove-time-slot-modal', function() {
                     $(this).closest('.timing-row-modal').remove();
                 });
-                
+
                 // Clean up modal on close
                 $(`#availabilityModal${productId}`).on('hidden.bs.modal', function() {
                     $(this).remove();
@@ -2186,17 +2339,17 @@
                     if (index > maxIndex) maxIndex = index;
                 });
                 const newIndex = maxIndex + 1;
-                
+
                 const slotHtml = `
                     <div class="row align-items-end mb-2 timing-row-modal" data-day="${day}" data-index="${newIndex}">
                         <div class="col-md-4">
                             <label class="form-label small">From</label>
-                            <input type="time" 
+                            <input type="time"
                                    class="form-control form-control-sm time-slot-from-modal">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small">To</label>
-                            <input type="time" 
+                            <input type="time"
                                    class="form-control form-control-sm time-slot-to-modal">
                         </div>
                         <div class="col-md-4 d-flex align-items-end">
@@ -2210,22 +2363,66 @@
                 timingsList.find('.timing-row-modal').last().find('.time-slot-from-modal').focus();
             }
 
+            window.saveOptions = function (productId) {
+                if (!selectedProducts[productId]) {
+                    alert('Please select the product first');
+                    return;
+                }
+
+                const modal = document.getElementById(`optionsModal${productId}`);
+                if (!modal) return;
+
+                const selectedOptions = [];
+
+                modal.querySelectorAll('.option-checkbox:checked').forEach(cb => {
+
+                    const priceInput = cb.closest('.form-check')
+                        ?.querySelector('.option-price-input');
+
+                    const finalPrice =
+                        priceInput && priceInput.value !== ''
+                            ? priceInput.value
+                            : cb.dataset.defaultPrice;
+
+                    selectedOptions.push({
+                        id: cb.dataset.id,
+                        title: cb.dataset.title || '',
+                        subtitle: cb.dataset.subtitle || '',
+                        price: finalPrice || '',
+                        is_available: true
+                    });
+                });
+
+
+                selectedProducts[productId].options = selectedOptions;
+
+                // ✅ CRITICAL LINE (FIX)
+                if (document.activeElement) {
+                    document.activeElement.blur();
+                }
+
+                $(`#optionsModal${productId}`).modal('hide');
+            };
+
+
+
+
             // Save availability for a product
             window.saveAvailability = function(productId) {
                 if (!selectedProducts[productId]) {
                     alert('Product not selected. Please select the product first.');
                     return;
                 }
-                
+
                 const modal = $(`#availabilityModal${productId}`);
                 const availableDays = [];
                 const availableTimings = {}; // Store in day-based format for modal/display, will be converted to new format on submit
-                
+
                 // Get selected days
                 modal.find('.day-checkbox-modal:checked').each(function() {
                     const day = $(this).data('day');
                     availableDays.push(day);
-                    
+
                     // Get time slots for this day (new format: separate from/to fields)
                     const slots = [];
                     modal.find(`.timings-list-modal[data-day="${day}"] .timing-row-modal`).each(function() {
@@ -2235,31 +2432,36 @@
                             slots.push({ from: from, to: to });
                         }
                     });
-                    
+
                     if (slots.length > 0) {
                         availableTimings[day] = slots;
                     }
                 });
-                
+
                 // Update product data
                 selectedProducts[productId].available_days = availableDays;
                 selectedProducts[productId].available_timings = availableTimings; // Store in day-based format, will be converted on submit
-                
+
                 // Update display
                 const daysCell = document.querySelector(`.availability-days-cell[data-product-id="${productId}"]`);
                 const timingsCell = document.querySelector(`.availability-timings-cell[data-product-id="${productId}"]`);
-                
+
                 if (daysCell) {
                     daysCell.innerHTML = renderAvailabilityDays(productId, availableDays);
                 }
                 if (timingsCell) {
                     timingsCell.innerHTML = renderAvailabilityTimings(productId, availableTimings);
                 }
-                
+
                 // Close modal
                 modal.modal('hide');
             };
         });
+        function attachAddonEventHandlers() {
+            // no-op safety function
+            // keeps old calls from breaking the page
+        }
+
     </script>
 
     <style>
@@ -2290,6 +2492,7 @@
         .product-row.table-success.table-primary {
             background-color: #cfe2ff !important;
             border: 2px solid #0d6efd !important;
+
         }
 
         .addon-row {
@@ -2376,17 +2579,7 @@
         .category-autocomplete-item:active {
             background-color: #e9ecef !important;
         }
-            display: block !important;
-            width: 20px !important;
-            height: 20px !important;
-            margin: 0 auto !important;
-            cursor: pointer !important;
-            z-index: 10 !important;
-            -webkit-appearance: checkbox !important;
-            -moz-appearance: checkbox !important;
-            appearance: checkbox !important;
-            pointer-events: auto !important;
-        }
+
 
         /* Override for checked/unchecked states */
         #products-table input[type="checkbox"]:checked,
@@ -2426,3 +2619,4 @@
         }
     </style>
 @endsection
+
