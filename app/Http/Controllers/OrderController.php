@@ -394,40 +394,23 @@ class OrderController extends Controller
             return 0;
         }
 
-        $vendorId = $order->vendorID;
-
-        $productIds = collect($products)
-            ->map(fn ($p) => $p['id'] ?? $p['productID'] ?? null)
-            ->filter()
-            ->unique()
-            ->toArray();
-
-        $vendorProducts = VendorProduct::where('vendorID', $vendorId)
-            ->whereIn('id', $productIds)
-            ->get()
-            ->keyBy('id');
-
         $grandTotal = 0;
 
         foreach ($products as $product) {
-            $productId = $product['id'] ?? $product['productID'] ?? null;
-            if (!$productId || !isset($vendorProducts[$productId])) {
-                continue;
-            }
 
-            $vp = $vendorProducts[$productId];
+            $qty = (int)($product['quantity'] ?? 1);
 
-            $qty = (int) ($product['quantity'] ?? 1);
-            $price = (float) $vp->merchant_price;
+            // ✅ TAKE PRICE FROM ORDER JSON
+            $price = (float)($product['merchant_price'] ?? 0);
+
             $itemTotal = $price * $qty;
 
-            // Extras "20,30" → 50
             $extrasTotal = 0;
             if (!empty($product['extras_price'])) {
                 $extrasTotal = array_sum(
                     array_map(
                         'floatval',
-                        array_filter(array_map('trim', explode(',', (string) $product['extras_price'])))
+                        array_filter(array_map('trim', explode(',', (string)$product['extras_price'])))
                     )
                 );
             }
@@ -633,47 +616,15 @@ class OrderController extends Controller
             return [];
         }
 
-        // Get vendor ID from first product if available
-        $vendorId = $products[0]['vendorID'] ?? null;
+        return array_map(function ($product) use ($currency, $placeholder) {
 
-        // Collect all product IDs and names for batch lookup
-        $productIds = [];
-        $productNames = [];
-        foreach ($products as $product) {
-            $productId = $product['id'] ?? $product['productID'] ?? null;
-            $productName = $product['name'] ?? null;
-            if ($productId) {
-                $productIds[] = $productId;
-            }
-            if ($productName && $vendorId) {
-                $productNames[] = $productName;
-            }
-        }
+            $quantity = (int) ($product['quantity'] ?? 1);
 
-        // Fetch all vendor products at once (optimize database queries)
-        $vendorProductsById = [];
-        $vendorProductsByName = [];
+            // ✅ TAKE PRICE FROM ORDER JSON
+            $price = (float) ($product['merchant_price'] ?? 0);
 
-        if (!empty($productIds)) {
-            $vendorProductsById = VendorProduct::whereIn('id', array_unique($productIds))
-                ->get()
-                ->keyBy('id')
-                ->toArray();
-        }
-
-        if (!empty($productNames) && $vendorId) {
-            $vendorProductsByName = VendorProduct::where('vendorID', $vendorId)
-                ->whereIn('name', array_unique($productNames))
-                ->get()
-                ->keyBy('name')
-                ->toArray();
-        }
-
-        return array_map(function ($product) use ($currency, $placeholder, $vendorProductsById, $vendorProductsByName) {
-            $quantity = (int) ($product['quantity'] ?? 0);
-            // ---- FIXED EXTRAS LOGIC (same as popup) ----
+            // Extras
             $extrasPrice = 0;
-
             if (!empty($product['extras_price'])) {
                 $extrasPrice = array_sum(
                     array_map(
@@ -685,59 +636,26 @@ class OrderController extends Controller
                 );
             }
 
-
-            // Try to fetch price from vendor_products table
-            $price = 0;
-            $productId = $product['id'] ?? $product['productID'] ?? null;
-            $productName = $product['name'] ?? null;
-            $vendorProduct = null;
-
-            // First try by ID
-            if ($productId && isset($vendorProductsById[$productId])) {
-                $vendorProduct = $vendorProductsById[$productId];
-            }
-
-            // If not found by ID, try by name
-            if (!$vendorProduct && $productName && isset($vendorProductsByName[$productName])) {
-                $vendorProduct = $vendorProductsByName[$productName];
-            }
-
-            // Get price from vendor product
-            if ($vendorProduct) {
-                // Use price from vendor_products table
-                $price = (float) ($vendorProduct['price'] ?? 0);
-            }
-
-            // STRICT: price must come ONLY from vendor_products
-            if (!$vendorProduct || empty($vendorProduct['merchant_price'])) {
-                $price = 0;
-            } else {
-                $price = (float) $vendorProduct['merchant_price'];
-            }
-
-
             $lineTotal = ($price * $quantity) + $extrasPrice;
 
-            // Get photo from vendor product if available
-            $photo = $placeholder;
-            if ($vendorProduct && !empty($vendorProduct['photo'])) {
-                $photo = $vendorProduct['photo'];
-            } elseif (!empty($product['photo'])) {
-                $photo = $product['photo'];
-            }
+            $photo = !empty($product['photo'])
+                ? $product['photo']
+                : $placeholder;
 
             return [
                 'name' => $product['name'] ?? 'Item',
                 'photo' => $photo,
                 'price' => $this->formatCurrency($price, $currency),
-                'price_raw' => $price, // Store raw price for calculations
+                'price_raw' => $price,
                 'quantity' => $quantity,
                 'extras_price' => $this->formatCurrency($extrasPrice, $currency),
-                'extras_price_raw' => $extrasPrice, // Store raw extras price for calculations
+                'extras_price_raw' => $extrasPrice,
                 'total' => $this->formatCurrency($lineTotal, $currency),
-                'total_raw' => $lineTotal, // Store raw total for calculations
+                'total_raw' => $lineTotal,
                 'extras' => $product['extras'] ?? [],
-                'variant' => $product['variant_info']['variant_options'] ?? $product['variant'] ?? [],
+                'variant' => $product['variant_info']['variant_options']
+                    ?? $product['variant']
+                        ?? [],
             ];
         }, $products);
     }
@@ -944,6 +862,7 @@ class OrderController extends Controller
         }
 
         $clean = trim((string) $value);
+
         $clean = trim($clean, '"');
 
         // ISO 8601 (2025-11-23T14:21:30.422489Z)
@@ -1072,41 +991,24 @@ class OrderController extends Controller
 
         $vendorId = $order->vendorID;
 
-        // Collect product IDs
-        $productIds = collect($products)->pluck('id')->filter()->unique()->toArray();
 
-        // Fetch vendor products (SOURCE OF TRUTH)
-        $vendorProducts = VendorProduct::where('vendorID', $vendorId)
-            ->whereIn('id', $productIds)
-            ->get()
-            ->keyBy('id');
 
         $popupItems = [];
         $grandTotal = 0;
 
         foreach ($products as $p) {
 
-            \Log::info('PRODUCT', $p);
-
-
-            $productId = $p['id'] ?? $p['productID'] ?? null;
-            if (!$productId || !isset($vendorProducts[$productId])) continue;
-
-            $vp = $vendorProducts[$productId];
-
-
             $qty = (int) ($p['quantity'] ?? 1);
-            $itemPrice = (float) $vp->merchant_price;
+
+            // ✅ TAKE PRICE FROM restaurant_orders JSON
+            $itemPrice = (float) ($p['merchant_price'] ?? 0);
+
             $itemTotal = $itemPrice * $qty;
 
-            // ---- ADDONS LOGIC (FIXED) ----
+            // ---- EXTRAS ----
             $extras = [];
             $extrasTotal = 0;
 
-            /**
-             * extras_price is stored like: "20,30"
-             * extras is stored like: ["cheese","butter"]
-             */
             $extrasPrices = [];
 
             if (!empty($p['extras_price'])) {
@@ -1129,18 +1031,18 @@ class OrderController extends Controller
                 $extrasTotal += $price;
             }
 
-
             $lineTotal = $itemTotal + $extrasTotal;
             $grandTotal += $lineTotal;
 
             $popupItems[] = [
-                'name' => $vp->name,
+                'name' => $p['name'] ?? 'Item',
                 'qty' => $qty,
                 'item_total' => $itemTotal,
                 'extras' => $extras,
                 'line_total' => $lineTotal,
             ];
         }
+
         $createdAt = $this->parseDate($order->createdAt);
 
 
@@ -1179,4 +1081,3 @@ class OrderController extends Controller
             'route_debug' => request()->route(), ]);
     }
 }
-

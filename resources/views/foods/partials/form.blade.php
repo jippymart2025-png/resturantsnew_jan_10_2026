@@ -171,7 +171,8 @@
     <div class="col-md-3">
         <div class="form-group">
             <label class="control-label font-weight-bold">Merchant Price <span class="text-danger">*</span></label>
-            <input type="number" step="0.01" name="merchant_price" id="merchant_price" class="form-control" value="{{ old('merchant_price', $merchantPrice) }}" required>
+            <input type="number" step="0.01" name="merchant_price" id="merchant_price" class="form-control"
+                   value="{{ old('merchant_price', $merchantPrice) }}" required>
         </div>
     </div>
 </div>
@@ -180,14 +181,17 @@
     <div class="col-md-3">
         <div class="form-group">
             <label class="control-label font-weight-bold">Online Price <span class="text-danger">*</span></label>
-            <input type="number" step="0.01" name="online_price" id="online_price" class="form-control" value="{{ old('online_price', $onlinePrice) }}" required>
-            <small class="form-text text-muted">Auto-calculated from merchant price. You can edit this value manually.</small>
+            <input type="number" step="0.01" name="online_price" id="online_price" class="form-control"
+                   value="{{ old('online_price', $onlinePrice) }}" required>
+            <small class="form-text text-muted">Auto-calculated from merchant price. You can edit this value
+                manually.</small>
         </div>
     </div>
     <div class="col-md-3">
         <div class="form-group">
             <label class="control-label font-weight-bold">Discount Price</label>
-            <input type="number" step="0.01" name="disPrice" id="disPrice" class="form-control" value="{{ old('disPrice', $food->disPrice ?? '') }}">
+            <input type="number" step="0.01" name="disPrice" id="disPrice" class="form-control"
+                   value="{{ old('disPrice', $food->disPrice ?? '') }}">
             <small class="text-danger" id="discount-price-error" style="display: none;"></small>
         </div>
     </div>
@@ -198,7 +202,8 @@
         <div class="alert alert-info" id="price-calculation-display">
             @if($priceCalculation)
                 <strong>Pricing Calculation:</strong><br>
-                <pre style="white-space: pre-wrap; font-family: inherit; margin: 0;">{{ \App\Services\PricingCalculationService::getCalculationText($priceCalculation, '₹') }}</pre>
+                <pre
+                    style="white-space: pre-wrap; font-family: inherit; margin: 0;">{{ \App\Services\PricingCalculationService::getCalculationText($priceCalculation, '₹') }}</pre>
             @else
                 <strong>Pricing Calculation:</strong><br>
                 <pre style="white-space: pre-wrap; font-family: inherit; margin: 0;">Enter merchant price to see calculation.</pre>
@@ -208,7 +213,7 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const hasSubscription = {{ $hasSubscription ? 'true' : 'false' }};
         const applyPercentage = {{ $applyPercentage }};
         const planType = '{{ $planType ?? 'commission' }}';
@@ -426,7 +431,7 @@
 
         // Calculate online price when merchant price changes (only if online price is empty/0 AND not manually edited)
         if (merchantPriceInput) {
-            merchantPriceInput.addEventListener('input', function() {
+            merchantPriceInput.addEventListener('input', function () {
                 // Only auto-calculate if online price was not manually edited
                 if (!onlinePriceManuallyEdited) {
                     calculateOnlinePrice(false); // Don't force, respect manual values
@@ -442,7 +447,7 @@
                     validateDiscountPrice();
                 }
             });
-            merchantPriceInput.addEventListener('change', function() {
+            merchantPriceInput.addEventListener('change', function () {
                 // Only auto-calculate if online price was not manually edited
                 if (!onlinePriceManuallyEdited) {
                     calculateOnlinePrice(false); // Don't force, respect manual values
@@ -463,7 +468,7 @@
         // Track if online price was manually edited
         if (onlinePriceInput) {
             // Detect if user manually edits online_price (different from original or auto-calculated value)
-            onlinePriceInput.addEventListener('input', function() {
+            onlinePriceInput.addEventListener('input', function () {
                 const currentValue = parseFloat(onlinePriceInput.value || 0);
                 const merchantPriceNum = parseFloat(merchantPriceInput?.value || 0);
 
@@ -513,7 +518,7 @@
             });
 
             // Also track on blur to catch paste events
-            onlinePriceInput.addEventListener('blur', function() {
+            onlinePriceInput.addEventListener('blur', function () {
                 const currentValue = parseFloat(onlinePriceInput.value || 0);
                 const merchantPriceNum = parseFloat(merchantPriceInput?.value || 0);
 
@@ -590,7 +595,7 @@
 
         // Validate discount price when it changes
         if (discountPriceInput) {
-            discountPriceInput.addEventListener('blur', function() {
+            discountPriceInput.addEventListener('blur', function () {
                 if (!validateDiscountPrice()) {
                     // Show alert if validation fails
                     const productNameInput = document.querySelector('input[name="name"]');
@@ -598,7 +603,7 @@
                     alert(`Discount price cannot be greater than online price for product "${productName}".`);
                 }
             });
-            discountPriceInput.addEventListener('change', function() {
+            discountPriceInput.addEventListener('change', function () {
                 if (!validateDiscountPrice()) {
                     // Show alert if validation fails
                     const productNameInput = document.querySelector('input[name="name"]');
@@ -610,7 +615,7 @@
 
         // Validate discount price when online price changes manually
         if (onlinePriceInput) {
-            onlinePriceInput.addEventListener('change', function() {
+            onlinePriceInput.addEventListener('change', function () {
                 if (discountPriceInput) {
                     if (!validateDiscountPrice()) {
                         // Show alert if validation fails
@@ -625,7 +630,7 @@
         // Validate before form submission
         const foodForm = document.querySelector('form[method="POST"]');
         if (foodForm) {
-            foodForm.addEventListener('submit', function(e) {
+            foodForm.addEventListener('submit', function (e) {
                 if (discountPriceInput && onlinePriceInput) {
                     if (!validateDiscountPrice()) {
                         e.preventDefault();
@@ -681,7 +686,8 @@
     <div class="col-md-3">
         <div class="form-group">
             <label class="control-label font-weight-bold">Quantity</label>
-            <input type="number" name="quantity" class="form-control" value="{{ old('quantity', $food->quantity ?? -1) }}">
+            <input type="number" name="quantity" class="form-control"
+                   value="{{ old('quantity', $food->quantity ?? -1) }}">
             <small class="form-text text-muted">Use -1 for unlimited</small>
         </div>
     </div>
@@ -689,15 +695,18 @@
         <div class="form-group">
             <label class="control-label font-weight-bold">Status</label>
             <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="publish" name="publish" {{ old('publish', $food->publish ?? true) ? 'checked' : '' }}>
+                <input class="form-check-input" type="checkbox" id="publish"
+                       name="publish" {{ old('publish', $food->publish ?? true) ? 'checked' : '' }}>
                 <label class="form-check-label" for="publish">Published</label>
             </div>
             <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="isAvailable" name="isAvailable" {{ old('isAvailable', $food->isAvailable ?? true) ? 'checked' : '' }}>
+                <input class="form-check-input" type="checkbox" id="isAvailable"
+                       name="isAvailable" {{ old('isAvailable', $food->isAvailable ?? true) ? 'checked' : '' }}>
                 <label class="form-check-label" for="isAvailable">Available</label>
             </div>
             <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="nonveg" name="nonveg" {{ old('nonveg', $food->nonveg ?? false) ? 'checked' : '' }}>
+                <input class="form-check-input" type="checkbox" id="nonveg"
+                       name="nonveg" {{ old('nonveg', $food->nonveg ?? false) ? 'checked' : '' }}>
                 <label class="form-check-label" for="nonveg">Non-Veg</label>
             </div>
         </div>
@@ -747,11 +756,13 @@
                         $daySlots = [['from' => '', 'to' => '']];
                     }
                 @endphp
-                <div class="day-timings-group mb-3" data-day="{{ $day }}" style="display: {{ in_array($day, $availableDays) ? 'block' : 'none' }};">
+                <div class="day-timings-group mb-3" data-day="{{ $day }}"
+                     style="display: {{ in_array($day, $availableDays) ? 'block' : 'none' }};">
                     <label class="control-label font-weight-bold">{{ $day }} Time Slots:</label>
                     <div class="timings-list mt-2" data-day="{{ $day }}">
                         @forelse ($daySlots as $index => $slot)
-                            <div class="row align-items-end mb-2 timing-row" data-day="{{ $day }}" data-index="{{ $index }}">
+                            <div class="row align-items-end mb-2 timing-row" data-day="{{ $day }}"
+                                 data-index="{{ $index }}">
                                 <div class="col-md-4">
                                     <label class="form-label small">From</label>
                                     <input type="time"
@@ -767,7 +778,8 @@
                                            value="{{ $slot['to'] ?? '' }}">
                                 </div>
                                 <div class="col-md-4 d-flex align-items-end">
-                                    <button type="button" class="btn btn-sm btn-outline-danger remove-time-slot w-100" title="Remove time slot">
+                                    <button type="button" class="btn btn-sm btn-outline-danger remove-time-slot w-100"
+                                            title="Remove time slot">
                                         <i class="fa fa-times mr-1"></i> Remove
                                     </button>
                                 </div>
@@ -788,7 +800,9 @@
                                                class="form-control form-control-sm time-slot-to">
                                     </div>
                                     <div class="col-md-4 d-flex align-items-end">
-                                        <button type="button" class="btn btn-sm btn-outline-danger remove-time-slot w-100" title="Remove time slot">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger remove-time-slot w-100"
+                                                title="Remove time slot">
                                             <i class="fa fa-times mr-1"></i> Remove
                                         </button>
                                     </div>
@@ -817,7 +831,9 @@
                         <strong>{{ $day }}:</strong>
                         @if (!empty($daySlots))
                             @foreach ($daySlots as $slot)
-                                {{ ($slot['from'] ?? '') . ' – ' . ($slot['to'] ?? '') }}@if(!$loop->last), @endif
+                                {{ ($slot['from'] ?? '') . ' – ' . ($slot['to'] ?? '') }}@if(!$loop->last)
+                                    ,
+                                @endif
                             @endforeach
                         @else
                             <span class="text-muted">No time slots set</span>
@@ -836,7 +852,8 @@
 <div class="form-group">
     <div class="col-md-6">
         <label class="control-label font-weight-bold">Description <span class="text-danger">*</span></label>
-        <textarea name="description" rows="4" class="form-control" required>{{ old('description', $food->description ?? '') }}</textarea>
+        <textarea name="description" rows="4" class="form-control"
+                  required>{{ old('description', $food->description ?? '') }}</textarea>
     </div>
 </div>
 
@@ -844,8 +861,10 @@
     <div class="col-md-4">
         <div class="form-group">
             <label class="control-label font-weight-bold">Image</label>
-            <input type="file" name="photo_upload" class="form-control-file" accept="image/jpeg,image/jpg,image/webp,image/png,image/jfif,image/avif">
-            <small class="form-text text-muted">Recommended size 800x600px. Only JPG, JPEG, WEBP, PNG, JFIF, and AVIF formats allowed.</small>
+            <input type="file" name="photo_upload" class="form-control-file"
+                   accept="image/jpeg,image/jpg,image/webp,image/png,image/jfif,image/avif">
+            <small class="form-text text-muted">Recommended size 800x600px. Only JPG, JPEG, WEBP, PNG, JFIF, and AVIF
+                formats allowed.</small>
         </div>
     </div>
     <div class="col-md-6">
@@ -859,7 +878,8 @@
 
 <div class="mt-4 border border 4px solid p-4">
     <label class="control-label font-weight-bold d-block">Current Image</label>
-    <img src="{{ $existingPhoto ?: $placeholderImage }}" alt="Current photo" class="rounded shadow" style="width: 160px; height: 120px; object-fit: cover;">
+    <img src="{{ $existingPhoto ?: $placeholderImage }}" alt="Current photo" class="rounded shadow"
+         style="width: 160px; height: 120px; object-fit: cover;">
     @if ($editing && $existingPhoto)
         <div class="form-check mt-2">
             <input class="form-check-input" type="checkbox" id="remove_photo" name="remove_photo">
@@ -875,8 +895,10 @@
     <div class="col-md-6">
         <div class="form-group">
             <label class="control-label font-weight-bold">Gallery Uploads</label>
-            <input type="file" name="gallery_uploads[]" class="form-control-file" multiple accept="image/jpeg,image/jpg,image/webp">
-            <small class="form-text text-muted">You can upload multiple images at once. Only JPG, JPEG, and WEBP formats allowed.</small>
+            <input type="file" name="gallery_uploads[]" class="form-control-file" multiple
+                   accept="image/jpeg,image/jpg,image/webp">
+            <small class="form-text text-muted">You can upload multiple images at once. Only JPG, JPEG, and WEBP formats
+                allowed.</small>
         </div>
     </div>
     <div class="col-md-6">
@@ -899,10 +921,12 @@
             <div class="repeatable-row border rounded p-3 mb-2">
                 <div class="form-row">
                     <div class="col-md-7">
-                        <input type="text" name="add_ons_title[]" class="form-control" placeholder="Title" value="{{ $row['title'] }}">
+                        <input type="text" name="add_ons_title[]" class="form-control" placeholder="Title"
+                               value="{{ $row['title'] }}">
                     </div>
                     <div class="col-md-4">
-                        <input type="number" step="0.01" name="add_ons_price[]" class="form-control" placeholder="Price" value="{{ $row['price'] }}">
+                        <input type="number" step="0.01" name="add_ons_price[]" class="form-control" placeholder="Price"
+                               value="{{ $row['price'] }}">
                     </div>
                     <div class="col-md-1 d-flex align-items-center">
                         <button type="button" class="btn btn-link text-danger" data-remove-row>&times;</button>
@@ -919,16 +943,19 @@
         <label class="btn btn-primary mb-3">Product Specifications</label>
         <button type="button" class="btn btn-sm btn-outline-primary" data-specs-add>Add new</button>
     </div>
-    <small class="form-text text-muted mb-2">Use specifications to highlight key product details (e.g., spicy level, calories).</small>
+    <small class="form-text text-muted mb-2">Use specifications to highlight key product details (e.g., spicy level,
+        calories).</small>
     <div data-specs-container>
         @forelse ($specRows as $row)
             <div class="repeatable-row border rounded p-3 mb-2">
                 <div class="form-row">
                     <div class="col-md-6">
-                        <input type="text" name="specification_label[]" class="form-control" placeholder="Label" value="{{ $row['label'] }}">
+                        <input type="text" name="specification_label[]" class="form-control" placeholder="Label"
+                               value="{{ $row['label'] }}">
                     </div>
                     <div class="col-md-5">
-                        <input type="text" name="specification_value[]" class="form-control" placeholder="Value" value="{{ $row['value'] }}">
+                        <input type="text" name="specification_value[]" class="form-control" placeholder="Value"
+                               value="{{ $row['value'] }}">
                     </div>
                     <div class="col-md-1 d-flex align-items-center">
                         <button type="button" class="btn btn-link text-danger" data-remove-row>&times;</button>
@@ -983,8 +1010,23 @@
                     @foreach($food->options as $opt)
                         <li>
                             <strong>{{ $opt['title'] ?? '' }}</strong>
-                            {{ $opt['subtitle'] ? ' – '.$opt['subtitle'] : '' }}
-                            {{ isset($opt['price']) ? '(₹'.$opt['price'].')' : '' }}
+                            {{ !empty($opt['subtitle']) ? ' – '.$opt['subtitle'] : '' }}
+
+                            @if(isset($opt['original_price']) || isset($opt['price']))
+                                (
+                                @if(isset($opt['original_price']))
+                                    Original: ₹{{ $opt['original_price'] }}
+                                @endif
+
+                                @if(isset($opt['original_price']) && isset($opt['price']))
+                                    |
+                                @endif
+
+                                @if(isset($opt['price']))
+                                    Price: ₹{{ $opt['price'] }}
+                                @endif
+                                )
+                            @endif
                         </li>
                     @endforeach
                 </ul>
@@ -1037,4 +1079,3 @@
         </div>
     </div>
 </template>
-

@@ -169,10 +169,17 @@
         ${opt.subtitle ? ` – ${opt.subtitle}` : ''}
     </label>
 
-    <input type="number"
-           class="form-control form-control-sm option-price-input"
-           style="width:90px"
-           value="${checked ? selected.price : opt.price}">
+   <input type="number"
+       class="form-control form-control-sm option-original-price-input"
+       style="width:90px"
+       placeholder="Original"
+       value="${checked ? (selected.original_price ?? opt.original_price ?? opt.price) : (opt.original_price ?? opt.price)}">
+
+<input type="number"
+       class="form-control form-control-sm option-price-input ml-1"
+       style="width:90px"
+       placeholder="Price"
+       value="${checked ? selected.price : opt.price}">
 </div>
 `;
             });
@@ -203,8 +210,15 @@
 
         document.querySelectorAll('.option-checkbox').forEach(cb => {
 
-            const priceInput = cb.closest('.form-check')
-                ?.querySelector('.option-price-input');
+            const wrapper = cb.closest('.form-check');
+
+            const originalInput = wrapper?.querySelector('.option-original-price-input');
+            const priceInput    = wrapper?.querySelector('.option-price-input');
+
+            const originalPrice =
+                originalInput && originalInput.value !== ''
+                    ? originalInput.value
+                    : cb.dataset.defaultPrice;
 
             const finalPrice =
                 priceInput && priceInput.value !== ''
@@ -212,31 +226,39 @@
                     : cb.dataset.defaultPrice;
 
             if (cb.checked) {
+
                 selectedOptions.push({
                     id: cb.dataset.id,
                     title: cb.dataset.title || '',
                     subtitle: cb.dataset.subtitle || '',
+                    original_price: originalPrice || 0,
                     price: finalPrice || 0,
                     is_available: true
                 });
-
             }
         });
 
-        document.getElementById('options_json').value = JSON.stringify(selectedOptions);
+        document.getElementById('options_json').value =
+            JSON.stringify(selectedOptions);
 
         const preview = document.getElementById('options-preview');
+
         if (selectedOptions.length) {
             preview.innerHTML =
                 '<ul>' +
                 selectedOptions.map(o =>
-                    `<li><strong>${o.title}</strong> ${o.subtitle ?? ''} (₹${o.price})</li>`
+                    `<li>
+            <strong>${o.title}</strong>
+            ${o.subtitle ? ' – ' + o.subtitle : ''}
+            (Original: ₹${o.original_price} | Price: ₹${o.price})
+        </li>`
                 ).join('') +
                 '</ul>';
         } else {
-            preview.innerHTML = '<span class="text-muted">No options selected</span>';
+            preview.innerHTML =
+                '<span class="text-muted">No options selected</span>';
         }
 
         $('#editOptionsModal').modal('hide');
-    }
+    };
 </script>

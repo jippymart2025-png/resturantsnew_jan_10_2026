@@ -339,36 +339,31 @@ class FoodController extends Controller
 // ===============================
 // ✅ NORMALIZE OPTIONS (BULK CREATE)
 // ===============================
+                // ===============================
+// ✅ STORE FULL OPTIONS (BULK CREATE)
+// ===============================
                 $decodedOptions = $productData['options'] ?? null;
-                $finalOptions = [];
 
-                if (is_array($decodedOptions)) {
+                if (is_array($decodedOptions) && count($decodedOptions) > 0) {
+
+                    $finalOptions = [];
+
                     foreach ($decodedOptions as $opt) {
 
                         if (is_string($opt)) {
                             $opt = json_decode($opt, true);
                         }
 
-                        if (empty($opt['title'])) {
-                            continue;
+                        if (!empty($opt['title'])) {
+                            $finalOptions[] = $opt;
                         }
-
-                        $finalOptions[] = [
-                            'id'           => $opt['id'] ?? null,
-                            'title'        => (string) ($opt['title'] ?? ''),
-                            'subtitle'     => (string) ($opt['subtitle'] ?? ''),
-                            'price'        => is_numeric($opt['price'] ?? null)
-                                ? number_format((float)$opt['price'], 2, '.', '')
-                                : 0,
-                            'is_available' => isset($opt['is_available'])
-                                ? (bool)$opt['is_available']
-                                : true,
-                        ];
                     }
+
+                    $food->options = count($finalOptions) > 0 ? $finalOptions : null;
+
+                } else {
+                    $food->options = null; // 🔥 FORCE NULL if empty or not set
                 }
-
-                $food->options = count($finalOptions) ? $finalOptions : null;
-
 
                 // Handle publish and isAvailable - convert string '1'/'0' to boolean
                 $publishValue = $productData['publish'] ?? true;
@@ -1236,37 +1231,28 @@ class FoodController extends Controller
         $food->photos = !empty($gallery) ? json_encode($gallery, JSON_UNESCAPED_SLASHES) : null;
 
         // ===============================
-// ✅ STEP FIX : 4 — NORMALIZE & SAVE PRODUCT OPTIONS
+// ✅ SAVE FULL PRODUCT OPTIONS STRUCTURE
 // ===============================
         if ($request->filled('options_json')) {
 
             $decodedOptions = json_decode($request->input('options_json'), true);
 
-            $finalOptions = [];
-
             if (is_array($decodedOptions)) {
+
+                $finalOptions = [];
+
                 foreach ($decodedOptions as $opt) {
 
                     if (empty($opt['title'])) {
                         continue;
                     }
 
-                    $finalOptions[] = [
-                        'id'           => $opt['id'] ?? null,   // ✅ ADD THIS
-                        'title'        => (string) ($opt['title'] ?? ''),
-                        'subtitle'     => (string) ($opt['subtitle'] ?? ''),
-                        'price'        => is_numeric($opt['price'] ?? null)
-                            ? number_format((float)$opt['price'], 2, '.', '')
-                            : 0,
-                        'is_available' => isset($opt['is_available'])
-                            ? (bool) $opt['is_available']
-                            : true,
-                    ];
-
+                    // 🔥 Store FULL structure exactly as received
+                    $finalOptions[] = $opt;
                 }
-            }
 
-            $food->options = count($finalOptions) ? $finalOptions : null;
+                $food->options = count($finalOptions) ? $finalOptions : null;
+            }
         }
 
 
@@ -1779,5 +1765,3 @@ class FoodController extends Controller
         }
     }
 }
-
-

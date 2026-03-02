@@ -1,4 +1,3 @@
-
 @extends('layouts.app')
 
 @section('content')
@@ -1146,11 +1145,8 @@
                             }
                         } else if (Array.isArray(currentProductsData[productId]?.options)) {
                             existingOptions = currentProductsData[productId].options.map(opt => ({
-                                id: opt.id,
-                                title: opt.title || '',
-                                subtitle: opt.subtitle || '',
-                                price: opt.price || '',
-                                is_available: true
+                                ...opt,              // 🔥 clone full master structure
+                                is_available: false  // default unchecked
                             }));
                         }
 
@@ -1370,7 +1366,7 @@
                         calcText += 'Before GST: ₹' + priceBeforeGst.toFixed(2) + '<br>';
 
                         if (gstAgreedValue) {
-                            calcText += '<span class="text-dark">GST: Absorbed by platform</span><br>';
+                            calcText += '<span class="text-success">GST: Absorbed by platform</span><br>';
                         } else {
                             // GST is 5% of Merchant Price (not of price before GST)
                             const gstAmount = merchantPrice * (gstPercentage / 100);
@@ -1858,18 +1854,10 @@
                                         const input = document.createElement('input');
                                         input.type = 'hidden';
                                         input.name = `selected_products[${index}][options][${optIndex}]`;
-                                        input.value = JSON.stringify({
-                                            id: opt.id,
-                                            title: opt.title || '',
-                                            subtitle: opt.subtitle || '',
-                                            price: opt.price || '',
-                                            is_available: !!opt.is_available
-                                        });
+                                        input.value = JSON.stringify(opt);   // 🔥 IMPORTANT FIX
                                         inputsContainer.appendChild(input);
                                     });
                                 }
-
-                                // 2️⃣ ADDONS
                             } else if (key === 'addons') {
                                 if (product.addons && product.addons.length > 0) {
                                     product.addons.forEach(addon => {
@@ -2013,11 +2001,17 @@
         ${opt.subtitle ? ` – ${opt.subtitle}` : ''}
     </label>
 
-    <input type="number"
-           class="form-control form-control-sm option-price-input"
-           style="width:90px"
-           value="${opt.price || ''}"
-           placeholder="₹ Price">
+   <input type="number"
+       class="form-control form-control-sm option-original-price-input"
+       style="width:90px;margin-right:5px"
+       value="${opt.original_price ?? opt.price ?? ''}"
+       placeholder="Original">
+
+<input type="number"
+       class="form-control form-control-sm option-price-input"
+       style="width:90px"
+       value="${opt.price || ''}"
+       placeholder="Price">
 </div>
 
             `;
@@ -2088,23 +2082,25 @@
 
 // 3️⃣ BUILD OPTIONS WITH CORRECT CHECK STATE
                 const options = baseOptions.map(opt => {
-                    const isSaved = savedOptions.some(saved =>
-                        saved.title === opt.title &&
-                        saved.subtitle === opt.subtitle
 
+                    // Try to find vendor saved version
+                    const saved = savedOptions.find(saved =>
+                        saved.id == opt.id
                     );
 
+                    if (saved) {
+                        // 🔥 Use FULL vendor saved object
+                        return {
+                            ...saved
+                        };
+                    }
 
-
+                    // 🔥 Otherwise clone FULL master option
                     return {
-                        id: opt.id,
-                        title: opt.title || '',
-                        subtitle: opt.subtitle || '',
-                        price: opt.price || '',
-                        is_available: isSaved
+                        ...opt,
+                        is_available: false
                     };
                 });
-
                 buildOptionsModal(productId, options);
                 return;
 
@@ -2364,6 +2360,7 @@
             }
 
             window.saveOptions = function (productId) {
+
                 if (!selectedProducts[productId]) {
                     alert('Please select the product first');
                     return;
@@ -2372,37 +2369,58 @@
                 const modal = document.getElementById(`optionsModal${productId}`);
                 if (!modal) return;
 
-                const selectedOptions = [];
+                const updatedOptions = [];
 
                 modal.querySelectorAll('.option-checkbox:checked').forEach(cb => {
 
-                    const priceInput = cb.closest('.form-check')
-                        ?.querySelector('.option-price-input');
+                    const wrapper = cb.closest('.form-check');
 
-                    const finalPrice =
-                        priceInput && priceInput.value !== ''
-                            ? priceInput.value
-                            : cb.dataset.defaultPrice;
+                    const originalPriceInput = wrapper.querySelector('.option-original-price-input');
+                    const priceInput = wrapper.querySelector('.option-price-input');
 
-                    selectedOptions.push({
-                        id: cb.dataset.id,
-                        title: cb.dataset.title || '',
-                        subtitle: cb.dataset.subtitle || '',
-                        price: finalPrice || '',
-                        is_available: true
-                    });
+                    // First try to get already edited vendor option
+                    let baseOption = selectedProducts[productId]?.options?.find(
+                        o => o.id == cb.dataset.id
+                    );
+
+// If not found, fallback to master option
+                    if (!baseOption) {
+                        baseOption = currentProductsData[productId]?.options?.find(
+                            o => o.id == cb.dataset.id
+                        );
+                    }
+
+                    if (baseOption) {
+
+                        // Clone full structure (vendor or master)
+                        const optionCopy = JSON.parse(JSON.stringify(baseOption));
+
+                        // Override editable fields
+                        optionCopy.original_price =
+                            originalPriceInput && originalPriceInput.value !== ''
+                                ? originalPriceInput.value
+                                : optionCopy.original_price ?? optionCopy.price ?? 0;
+
+                        optionCopy.price =
+                            priceInput && priceInput.value !== ''
+                                ? priceInput.value
+                                : optionCopy.price ?? 0;
+
+                        optionCopy.is_available = true;
+
+                        updatedOptions.push(optionCopy);
+                    }
                 });
 
-
-                selectedProducts[productId].options = selectedOptions;
-
-                // ✅ CRITICAL LINE (FIX)
-                if (document.activeElement) {
-                    document.activeElement.blur();
+                if (updatedOptions.length > 0) {
+                    selectedProducts[productId].options = updatedOptions;
+                } else {
+                    delete selectedProducts[productId].options; // 🔥 IMPORTANT
                 }
 
                 $(`#optionsModal${productId}`).modal('hide');
             };
+
 
 
 
@@ -2619,4 +2637,3 @@
         }
     </style>
 @endsection
-

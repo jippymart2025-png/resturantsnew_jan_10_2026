@@ -51,4 +51,3 @@
 @section('scripts')
     @include('foods.partials.form_scripts')
 @endsection
-
